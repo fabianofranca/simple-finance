@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contas · teste de conexão</title>
+<style>
+  :root { --bg:#f7f8fa; --fg:#1d2433; --muted:#5b6578; --line:#d7dce5; --accent:#2f6f5e; --err:#b3261e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#151a22; --fg:#e6e9ef; --muted:#9aa3b5; --line:#2c3443; --accent:#5fb39b; --err:#f2938c; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui, sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { font-size:1.4rem; margin:0 0 4px; }
+  p { color:var(--muted); margin:0 0 20px; }
+  fieldset { border:1px solid var(--line); border-radius:10px; padding:16px; margin:0 0 16px; }
+  legend { padding:0 6px; font-weight:600; }
+  label { display:block; font-size:.9rem; margin:8px 0 4px; }
+  input { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; background:transparent; color:inherit; font:inherit; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  button { padding:10px 14px; border:0; border-radius:8px; background:var(--accent); color:#fff; font:inherit; font-weight:600; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  pre { background:transparent; border:1px solid var(--line); border-radius:10px; padding:12px; overflow-x:auto; font-size:.85rem; min-height:80px; white-space:pre-wrap; }
+  .err { color:var(--err); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Teste de conexão com a planilha</h1>
+  <p>Configure a URL do Apps Script e a chave, depois leia ou grave uma linha.</p>
+
+  <fieldset>
+    <legend>Configuração</legend>
+    <label for="url">URL do app da Web</label>
+    <input id="url" type="url" placeholder="https://script.google.com/macros/s/.../exec">
+    <label for="key">Chave</label>
+    <input id="key" type="password" autocomplete="off">
+    <div class="row">
+      <button id="save">Salvar configuração</button>
+      <button id="clear" class="ghost">Apagar configuração</button>
+    </div>
+  </fieldset>
+
+  <div class="row">
+    <button id="read">Ler planilha</button>
+    <button id="append" class="ghost">Gravar linha de teste</button>
+  </div>
+
+  <h2 style="font-size:1rem;margin:24px 0 8px">Resultado</h2>
+  <pre id="out">Nenhuma chamada feita ainda.</pre>
+</main>
+
+<script>
+  const CONFIG_KEY = 'contas-config';
+  const $ = id => document.getElementById(id);
+
+  function loadConfig() {
+    try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}; } catch { return {}; }
+  }
+
+  function show(data, isError = false) {
+    $('out').className = isError ? 'err' : '';
+    $('out').textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  }
+
+  async function api(method, payload) {
+    const { url, key } = loadConfig();
+    if (!url || !key) throw new Error('Salve a URL e a chave antes de testar.');
+    const t0 = performance.now();
+    const res = method === 'GET'
+      ? await fetch(`${url}?key=${encodeURIComponent(key)}`)
+      // text/plain evita o preflight de CORS, que o Apps Script não suporta
+      : await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ key, ...payload })
+        });
+    const data = await res.json();
+    data._ms = Math.round(performance.now() - t0);
+    if (!data.ok) throw new Error(`Erro do servidor: ${data.error} (${data._ms} ms)`);
+    return data;
+  }
+
+  async function run(fn) {
+    show('Carregando...');
+    try { show(await fn()); } catch (e) { show(e.message, true); }
+  }
+
+  $('save').onclick = () => {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify({ url: $('url').value.trim(), key: $('key').value }));
+    show('Configuração salva neste navegador.');
+  };
+  $('clear').onclick = () => {
+    localStorage.removeItem(CONFIG_KEY);
+    $('url').value = ''; $('key').value = '';
+    show('Configuração apagada.');
+  };
+  $('read').onclick = () => run(() => api('GET'));
+  $('append').onclick = () => run(() => api('POST', {
+    action: 'append',
+    row: { descricao: 'Conta de teste', valor: 123.45, vencimento: new Date().toISOString().slice(0, 10), pago: false }
+  }));
+
+  const cfg = loadConfig();
+  if (cfg.url) $('url').value = cfg.url;
+  if (cfg.key) $('key').value = cfg.key;
+</script>
+</body>
+</html>
