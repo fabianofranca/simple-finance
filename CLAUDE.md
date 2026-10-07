@@ -23,21 +23,27 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - **Latência:** cada chamada leva de 1 a 2 segundos. Fases futuras devem usar cache local e salvar em segundo plano.
 
 ## Arquivos
-- `PLAN.md`: plano da Fase 0 (setup e teste de leitura e gravação na planilha). É a fonte de verdade da fase atual.
-- `Code.gs`: backend inicial, com GET que lê as linhas e POST com `action: append`.
-- `index.html`: página de teste inicial, que vai ser separada em `src/` conforme o plano.
+- `PLAN.md`: plano da Fase 0 (concluída).
+- `apps-script/Code.gs`: backend. GET lê as linhas da aba `Teste`; POST aceita as actions `append` e `ping`. É copiado manualmente para o editor do Apps Script.
+- `index.html` + `styles.css`: página de teste de conexão.
+- `src/config.js`: leitura e gravação da config (URL e chave) no `localStorage`.
+- `src/api.js`: cliente do Apps Script (`getRows`, `appendRow`, `ping`), com timeout e medição de latência.
+- `src/main.js`: liga a UI às funções.
+- `scripts/smoke-test.sh`: teste via `curl`, lendo URL e chave do `.env`.
+- `README.md`: passo a passo de setup.
 
 ## Status
 - [x] Arquitetura definida
 - [x] Plano da Fase 0 escrito
-- [ ] Fase 0 executada: smoke test passando e teste validado no celular da esposa
+- [x] Fase 0 executada: smoke test passando e teste validado no celular
 - [ ] Fase 1: modelar os dados a partir da planilha Excel dela. O Fabiano ainda vai explicar como a planilha funciona (colunas, abas, fórmulas, uso no dia a dia)
 - [ ] Fase 2 em diante: telas do app (a ideia inicial é uma lista do mês com botão "paguei" e destaque para vencimentos)
 
 ## Como trabalhar neste repo
 - **Fases:** cada fase tem seu próprio plano em Markdown, aprovado pelo Fabiano antes de executar.
-- **Execução:** Sonnet com esforço médio.
+- **Papéis:** a sessão principal é a coordenadora. Junto com o Fabiano, ela atua como produto e arquitetura para fechar a solução. Na execução, quebra cada etapa em tarefas e delega para subagentes, escolhendo modelo e esforço conforme a complexidade de cada tarefa.
+- **Paralelismo:** tarefas que mexem nos mesmos arquivos rodam em sequência. Tarefas independentes podem rodar em paralelo, cada uma isolada.
+- **Branches e PRs:** um PR por tarefa, cada um na sua própria branch. O agente faz commit e push na branch da tarefa; a coordenadora revisa o diff e abre o PR. O `main` só muda com aprovação e merge do Fabiano.
 - **Ações manuais:** o que só o Fabiano pode fazer (planilha, implantação, `.env`, GitHub Pages) vira uma pausa explícita com passo a passo.
-- **Commits:** nunca fazer commit ou push sem confirmação.
 - **Escopo:** não adicionar frameworks, build ou dependências sem discutir antes.
 - **Este arquivo:** atualize a seção Status ao concluir cada etapa.
