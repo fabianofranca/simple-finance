@@ -1,5 +1,18 @@
 // Backend do app de contas: Google Apps Script vinculado à planilha.
-// Troque a chave abaixo antes de implantar.
+//
+// Como implantar:
+// 1. Na planilha: Extensões → Apps Script. Cole este arquivo e troque o SECRET.
+// 2. Implantar → Nova implantação → App da Web.
+//    Executar como: eu | Acesso: qualquer pessoa.
+// 3. Copie a URL que termina em /exec (não use a /dev).
+// 4. Ao alterar o script: Implantar → Gerenciar implantações → Editar →
+//    Nova versão. Assim a URL continua a mesma.
+//
+// Contrato:
+//   GET  ?key=...                              -> { ok, rows }
+//   POST { key, action: 'append', row: {...} } -> { ok }
+//   POST { key, action: 'ping' }               -> { ok, time }
+//   Erros: { ok: false, error: 'unauthorized' | 'invalid_json' | 'unknown_action' }
 const SECRET = 'troque-por-uma-chave-longa';
 const SHEET_NAME = 'Teste';
 
@@ -16,6 +29,9 @@ function doPost(e) {
     return json({ ok: false, error: 'invalid_json' });
   }
   if (body.key !== SECRET) return json({ ok: false, error: 'unauthorized' });
+
+  // ping só lê o relógio, não precisa de lock
+  if (body.action === 'ping') return json({ ok: true, time: new Date().toISOString() });
 
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
