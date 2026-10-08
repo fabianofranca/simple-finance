@@ -33,7 +33,7 @@
 //   POST { key, action: 'saveEntries', entries: [{accountId, month, amount}] }
 //                                                                  -> { ok, saved }
 //        (upsert por conta + mês; amount null apaga a linha)
-//   POST { key, action: 'saveCheckin', checkin: {...} }           -> { ok }   (append)
+//   POST { key, action: 'saveCheckin', checkin: {...} }           -> { ok }   (append; idempotente por `at`)
 //   POST { key, action: 'saveSettings', settings: {...} }         -> { ok }
 //        (só checkinFrequency, horizonMonths e lastReviewAt)
 //   POST { key, action: 'seed' }                                  -> { ok }   (só ambiente = teste)
@@ -583,7 +583,10 @@ function saveEntries(payload) {
 
 function saveCheckin(payload) {
   const c = validateCheckin(payload);
-  appendRows(loadTable('Checkins'), [{
+  const table = loadTable('Checkins');
+  // reenvio da mesma operação (resposta perdida): já existe, não duplica
+  if (table.rows.some(function (r) { return readText(r.v.data) === c.at; })) return { ok: true };
+  appendRows(table, [{
     data: c.at,
     mes: c.month,
     saldo: toReais(c.balance),
