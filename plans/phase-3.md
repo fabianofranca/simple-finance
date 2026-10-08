@@ -29,7 +29,7 @@ A Fase 2 entregou o app instalável com as telas Check-in e Mês. A Fase 3 compl
 - `questionText(item, month)` → `{ title, question }`. Título "Nubank · novembro". `confirm`: "Ainda está em R$ 1.000,00?" [Sim] [Mudou]; estimado: "Pelo valor padrão, deve ficar em R$ 150,00 (estimado). Continua assim?" [Sim] [Mudou]. `ask`: "Já sabe quanto vai ser em novembro?" [Ainda não sei] [Informar]. Todas com "Pular". Progresso "2 de 5".
 - `monthEnd(data, today, month)`: sobra prevista no fim de `month` (via `project`). `reviewDone(month, before, after)`: "Pronto! Sua sobra de novembro ficou em R$ 1.400,00 (antes R$ 1.600,00)"; igual: "Pronto! Sua sobra de novembro continua em R$ 1.600,00".
 - `daysSince(iso, now)`: diferença em dias de calendário local; ISO inválido conta como nulo.
-- `reminder(settings, now)`: `lastReviewAt` nulo/inválido → "Que tal revisar as contas do mês que vem?"; mais de 7 dias → "Faz 9 dias que você não revisa as contas."; senão `null`.
+- `reminder(settings, now)`: `lastReviewAt` nulo/inválido → "Que tal revisar as contas do mês que vem?"; 7 dias ou mais → "Faz 9 dias que você não revisa as contas."; senão `null`.
 - Lista vazia (nenhuma conta de despesa ativa) vai direto ao fim.
 
 **Posso comprar? (`src/buy-view.js`):** `buyView(data, today, { installment, count })` chama `canBuy` com o horizonte das settings (padrão 3) e devolve `{ ok, headline, detail, warning, range, rows }`: `headline` "Pode comprar" ou "Não pode"; `detail` "Em janeiro fica faltando R$ 250,00" (só no "Não pode"); `warning` "Mesmo sem essa compra, janeiro já fica negativo (faltam R$ 50,00)." quando `alreadyNegative`; `range` "3 parcelas de R$ 100,00, de novembro a janeiro" (1 parcela: "1 parcela de R$ 100,00, em novembro"); `rows` `[{ month, label, before, after, negative }]` dos H meses. Mês de outro ano usa `monthLabel` ("janeiro de 2027") no `detail`, no `warning` e no `range`; nas linhas, `monthName`. Entrada inválida (`parseMoney` nulo ou ≤ 0, parcelas fora de 1 a 24) não chama `canBuy`.
@@ -50,7 +50,7 @@ Cada tarefa vira um PR. **T1 e T2 começam em paralelo.** T3, T4 e T5 dependem d
 
 ### T2. Lógica pura + testes
 - `src/review.js`, `src/buy-view.js`, `src/accounts.js` e `shortUrl` conforme as regras; testes em `tests/review.test.js`, `tests/buy-view.test.js`, `tests/accounts.test.js`, `tests/config.test.js`.
-- Casos mínimos: com a massa do `seed`, perguntas de novembro na ordem (Nubank 1.000, Inter 600, Renner 300, C&A 200, Unha 150 estimado) e salário de fora; conta sem valor vira `ask`; arquivada fora; antes/depois mudando e igual; lembrete com nulo, ISO inválido, 7 e 8 dias, virada do dia local; todos os casos de "Posso comprar?" do roteiro da T3; `move` no topo/fim e com `order` repetido; `nextOrder` contando arquivadas.
+- Casos mínimos: com a massa do `seed`, perguntas de novembro na ordem (Nubank 1.000, Inter 600, Renner 300, C&A 200, Unha 150 estimado) e salário de fora; conta sem valor vira `ask`; arquivada fora; antes/depois mudando e igual; lembrete com nulo, ISO inválido, 6 e 7 dias (aparece com 7), virada do dia local; todos os casos de "Posso comprar?" do roteiro da T3; `move` no topo/fim e com `order` repetido; `nextOrder` contando arquivadas.
 - **Aceite:** `node --test` passa, sem warnings.
 
 ### T3. Posso comprar? (`src/screens/buy.js` + `styles/buy.css`)

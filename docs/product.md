@@ -86,7 +86,7 @@ Em vez de navegar e editar valores, o app pergunta uma conta de cada vez.
 
 ## Lembrete
 
-Faixa no topo da tela Mês quando ela nunca revisou ou faz mais de 7 dias desde a última revisão:
+Faixa no topo da tela Mês quando ela nunca revisou ou faz 7 dias ou mais desde a última revisão (quem revisa todo domingo vê a faixa no domingo seguinte):
 
 - "Faz 9 dias que você não revisa as contas." [Revisar agora]
 - sem revisão anterior: "Que tal revisar as contas do mês que vem?" [Revisar agora]
