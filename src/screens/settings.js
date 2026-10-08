@@ -229,7 +229,8 @@ export function mount(el, ctx) {
     const active = activeAccounts(data.accounts);
     const archived = archivedAccounts(data.accounts);
 
-    const rows = active.map((account, i) => {
+    // Entradas e Contas são listas separadas (como na tela Mês); as setas valem dentro de cada uma.
+    const rowsOf = (list) => list.map((account, i) => {
       const meta = `${typeLabel(account.type)} · ${
         Number.isInteger(account.defaultAmount) ? formatMoney(account.defaultAmount) : 'sem valor padrão'
       }`;
@@ -261,7 +262,7 @@ export function mount(el, ctx) {
           class: 'arrow',
           'data-move': `${account.id}:down`,
           'aria-label': `Descer ${account.name}`,
-          disabled: i === active.length - 1,
+          disabled: i === list.length - 1,
           onclick: () => moveAccount(account.id, 'down')
         }, '↓')
       );
@@ -309,14 +310,24 @@ export function mount(el, ctx) {
       });
     }
 
-    return h(
-      'section',
-      { class: 'st-section' },
-      h('h2', {}, 'Contas'),
-      rows.length ? h('ul', { class: 'st-list' }, ...rows) : h('p', { class: 'st-note' }, 'Nenhuma conta ativa.'),
-      h('div', { class: 'st-add' }, h('button', { type: 'button', class: 'ghost', 'data-new-account': '', onclick: () => openAccountDialog(null) }, 'Nova conta')),
-      archivedBlock
-    );
+    const listSection = (title, type, emptyText) => {
+      const rows = rowsOf(active.filter((a) => a.type === type));
+      return [
+        h('h2', {}, title),
+        rows.length ? h('ul', { class: 'st-list' }, ...rows) : h('p', { class: 'st-note' }, emptyText)
+      ];
+    };
+
+    return [
+      h('section', { class: 'st-section' }, ...listSection('Entradas', 'income', 'Nenhuma entrada ativa.')),
+      h(
+        'section',
+        { class: 'st-section' },
+        ...listSection('Contas', 'expense', 'Nenhuma conta ativa.'),
+        h('div', { class: 'st-add' }, h('button', { type: 'button', class: 'ghost', 'data-new-account': '', onclick: () => openAccountDialog(null) }, 'Nova conta')),
+        archivedBlock
+      )
+    ];
   }
 
   function checkinSection(settings) {
@@ -405,7 +416,7 @@ export function mount(el, ctx) {
     content.replaceChildren(
       title,
       queueLine(store),
-      accountsSection(data),
+      ...accountsSection(data),
       checkinSection(settings),
       horizonSection(settings),
       connectionSection()
