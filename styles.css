@@ -27,3 +27,4 @@ button:disabled { opacity:.5; cursor:default; }
 #summary .line { display:flex; justify-content:space-between; gap:8px; padding:2px 0; }
 #summary .line + h3 { margin-top:12px; }
 #summary .neg { color:var(--err); font-weight:600; }
+[hidden] { display:none !important; }
