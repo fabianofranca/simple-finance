@@ -211,7 +211,7 @@ function ensureSheets() {
     const sheet = ss.insertSheet(name);
     const headers = def.columns.map(function (c) { return c.name; });
     // formatos antes dos valores, para o Sheets não converter "2026-11" em data
-    formatColumns(sheet, def, headers, 2, Math.max(1, sheet.getMaxRows() - 1));
+    formatColumns(sheet, def, headers, 2, Math.max(1, sheet.getMaxRows() - 1), false);
     sheet.getRange(1, 1, 1, headers.length).setNumberFormat('@').setValues([headers]).setFontWeight('bold');
     sheet.setFrozenRows(1);
     if (name === 'Config') {
@@ -221,14 +221,16 @@ function ensureSheets() {
 }
 
 // Aplica o formato de cada coluna (pelo cabeçalho) num intervalo de linhas
-function formatColumns(sheet, def, headers, startRow, numRows) {
+// withCheckbox=false na criação da aba: a caixa de seleção só vai nas linhas gravadas
+// (senão as células viram "conteúdo" e o getLastRow passa a apontar para o fim da grade)
+function formatColumns(sheet, def, headers, startRow, numRows, withCheckbox) {
   def.columns.forEach(function (c) {
     const col = headers.indexOf(c.name) + 1;
     if (col < 1) return;
     const range = sheet.getRange(startRow, col, numRows, 1);
     if (c.kind === 'text') range.setNumberFormat('@');
     else if (c.kind === 'money') range.setNumberFormat('0.00');
-    else if (c.kind === 'bool') range.setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
+    else if (c.kind === 'bool' && withCheckbox) range.setDataValidation(SpreadsheetApp.newDataValidation().requireCheckbox().build());
   });
 }
 
@@ -287,7 +289,7 @@ function appendRows(table, objs) {
   const end = start + objs.length - 1;
   if (end > sheet.getMaxRows()) sheet.insertRowsAfter(sheet.getMaxRows(), end - sheet.getMaxRows());
   // formata antes de gravar, para ids e meses ficarem como texto
-  formatColumns(sheet, def, table.headers, start, objs.length);
+  formatColumns(sheet, def, table.headers, start, objs.length, true);
   sheet.getRange(start, 1, objs.length, width).setValues(data);
 }
 
@@ -655,7 +657,11 @@ function resetData() {
 
   tables.concat([config]).forEach(function (t) {
     const last = t.sheet.getLastRow();
-    if (last > 1) t.sheet.getRange(2, 1, last - 1, t.headers.length).clearContent();
+    if (last > 1) {
+      const range = t.sheet.getRange(2, 1, last - 1, t.headers.length);
+      range.clearContent();
+      range.clearDataValidations(); // tira as caixas de seleção das linhas apagadas
+    }
   });
 
   const rows = CONFIG_DEFAULTS.map(function (p) { return { chave: p[0], valor: p[1] }; });
