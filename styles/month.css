@@ -43,8 +43,13 @@
 .upcoming .row-name { text-transform: capitalize; }
 button.link { min-height: 44px; padding: 6px 8px; color: var(--accent); font-size: .9rem; text-decoration: underline; }
 
-.foot { margin-top: 32px; text-align: center; }
+.foot { margin-top: 32px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .foot .ghost { border-color: var(--line); color: var(--muted); font-weight: 400; }
+
+/* Faixa do lembrete da revisão */
+.reminder { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 8px; padding: 8px 8px 8px 16px; background: var(--notice-bg); border: 1px solid var(--line); border-radius: 14px; }
+.reminder-text { flex: 1; min-width: 0; color: var(--fg); overflow-wrap: anywhere; }
+.reminder button { flex: none; }
 
 /* Diálogo de edição */
 .edit-dialog { width: min(92vw, 360px); max-width: 360px; margin: 12vh auto auto; padding: 20px 16px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--fg); }
