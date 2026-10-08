@@ -31,7 +31,7 @@ Ela **não** marca conta por conta como paga, e não vai passar a marcar. Se o a
 
 ## Check-in
 
-Uma tela só. Abre sozinha conforme a frequência configurada e também pode ser aberta manualmente.
+Uma tela só. Abre sozinha conforme a frequência configurada (padrão: **1x por dia**) e também pode ser aberta manualmente, pelo botão "Conferir saldo" da tela Mês.
 
 ```
 Como está outubro?
@@ -41,11 +41,13 @@ Salário de outubro:  [Já caiu]    [Ainda não]
                   [Confirmar]
 ```
 
-- "Na conta" vem preenchido com o último saldo informado, e ela confirma ou altera. É o saldo em conta, sem desconto nenhum.
-- Depois que ela responde "Já paguei" ou "Já caiu" num mês, aquela linha some até o mês seguinte.
+- **Quando abre sozinha:** sem nenhum check-in, sempre (é a base do cálculo). Com "toda vez", a cada abertura do app. Com "1x por dia", se o último check-in não foi hoje. Com "1x por semana", se faz 7 dias ou mais do último. O app confere ao abrir e quando volta para a frente da tela. Se já existe check-in, ela pode tocar em "Agora não", e o app só pergunta de novo no dia seguinte.
+- "Na conta" vem preenchido com o último saldo informado, e ela confirma ou altera. É o saldo em conta, sem desconto nenhum. Sem check-in anterior, o campo vem vazio e é obrigatório.
+- Depois que ela responde "Já paguei" ou "Já caiu" num mês, aquela linha some até o mês seguinte, e os próximos check-ins do mês gravam a resposta "sim" sozinhos.
+- No **primeiro check-in do mês**, as linhas vêm sem nada marcado e "Confirmar" só libera depois que ela responde as duas. Nos seguintes do mesmo mês, vêm marcadas com a última resposta ("Ainda não"), para confirmar com um toque.
 - Enquanto a resposta for "Ainda não", o app considera **todas** as contas do mês pendentes. É um erro conservador, que mostra menos sobra, e foi aceito de propósito.
 - "Salário" cobre todas as receitas do mês.
-- **Educativo:** ao confirmar, se a sobra prevista do mês caiu em relação ao check-in anterior do mesmo mês, o app mostra algo como "Sua sobra de outubro caiu R$ 120 desde 03/10".
+- **Educativo:** ao confirmar, se a sobra prevista do mês caiu em relação ao check-in anterior do mesmo mês, a tela Mês mostra um aviso como "Sua sobra de outubro caiu R$ 120,00 desde 03/10", que some com um toque.
 
 ## Cálculo (fluxo de caixa)
 
@@ -79,14 +81,21 @@ Aviso dentro do app quando fizer mais de 7 dias desde a última atualização se
 
 ## Telas
 
-Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**.
+Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**. Ela chega na Fase 3, junto com as outras telas; na Fase 2 só existe a tela Mês, e o check-in manual abre pelo botão "Conferir saldo".
+
+O app é instalável na tela inicial do celular (ícone "Contas", abre sem a barra do navegador). O painel de desenvolvimento fica em `dev.html`, fora do app, sem link a partir dele.
 
 - **Check-in:** como descrito acima.
 - **Mês:**
-  - Navegação ‹ mês ›.
-  - No topo: Na conta, Falta pagar e Sobra no fim do mês.
-  - Bloco "Próximos meses" com a sobra acumulada dos próximos H meses, com negativos em vermelho.
-  - Lista de contas do mês com nome e valor. Um toque no valor abre a edição. Valor padrão aparece em cinza. Não há caixas de marcar.
+  - Navegação ‹ outubro de 2026 ›, de 12 meses para trás até 12 meses para frente do mês atual.
+  - No topo, conforme o mês:
+    - mês atual: Na conta, Falta pagar e Sobra no fim do mês;
+    - mês futuro: Entra, Sai e Sobra prevista no fim do mês;
+    - mês passado: Entrou e Saiu, sem sobra.
+  - Bloco "Próximos meses" (só no mês atual) com a sobra acumulada dos próximos H meses, com negativos em vermelho. Tocar num mês abre esse mês.
+  - Lista do mês em duas partes, "Entradas" e "Contas", na ordem das contas, com nome e valor. Valor padrão aparece em cinza com a palavra "estimado"; sem valor, aparece "—". Conta arquivada só aparece se tiver lançamento no mês. Não há caixas de marcar.
+  - Um toque no valor abre a edição. Se a conta tem valor padrão, há também "Usar o valor padrão", que apaga o lançamento do mês.
+  - Gravação em segundo plano, com aviso discreto em linguagem humana: "Salvando…", "Sem internet, vou tentar de novo" ou "Não consegui salvar." com "Tentar de novo".
 - **Posso comprar?:** como descrito acima.
 - **Ajustes:**
   - Contas: criar, renomear, arquivar, tipo, valor padrão e ordem.
@@ -98,7 +107,7 @@ Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**.
 
 - O histórico começa no mês atual. Anos anteriores não são importados.
 - **Ambiente de teste:** a planilha do Fabiano (a da Fase 0). A massa de teste é gerada pelo painel, e só funciona se a aba `Config` tiver a linha `ambiente = teste`.
-- **Planilha da esposa:** criada do zero na entrega, sem a linha `ambiente`. A carga real é feita pelo próprio app (telas Mês e Ajustes), sem digitar no Sheets.
+- **Planilha da esposa:** criada do zero na entrega, sem a linha `ambiente`. No mesmo passo, o Fabiano manda para ela um link de configuração (URL e chave num link), para ela não digitar nada. A carga real é feita pelo próprio app (telas Mês e Ajustes), sem digitar no Sheets.
 - A planilha continua legível para ela, com abas e cabeçalhos em PT-BR e uma aba `Resumo` opcional, com contas × meses.
 
 ## Fases
@@ -106,7 +115,7 @@ Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**.
 | Fase | Entrega |
 |---|---|
 | 1 — dados e regras | Abas, API, cache local com fila de gravação, cálculo com testes. Plano: `plans/phase-1.md` |
-| 2 — substitui a planilha | Telas Check-in e Mês, com o bloco Próximos meses |
+| 2 — substitui a planilha | Telas Check-in e Mês (com Próximos meses), app instalável. Plano: `plans/phase-2.md` |
 | 3 | Posso comprar?, atualização semanal guiada, Ajustes e lembrete |
 
 ## Fora do escopo
