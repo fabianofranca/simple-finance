@@ -105,8 +105,8 @@ Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**.
 | Fase | Entrega |
 |---|---|
 | 1 — dados e regras | Abas, API, cache local com fila de gravação, cálculo com testes. Plano: `plans/phase-1.md` |
-| 2 — substitui a planilha | Telas Check-in e Mês |
-| 3 | Posso comprar?, Próximos meses, atualização semanal guiada, Ajustes e lembrete |
+| 2 — substitui a planilha | Telas Check-in e Mês, com o bloco Próximos meses |
+| 3 | Posso comprar?, atualização semanal guiada, Ajustes e lembrete |
 
 ## Fora do escopo
 
