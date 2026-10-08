@@ -259,7 +259,7 @@ export function mount(el, ctx) {
       upcomingBlock(view),
       section('Entradas', view.rows.income, month),
       section('Contas', view.rows.expense, month),
-      h('div', { class: 'foot' }, h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#checkin') }, 'Atualizar saldo'))
+      h('div', { class: 'foot' }, h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#checkin') }, `Atualizar saldo de ${monthName(current)}`))
     ];
     content.replaceChildren(...parts.filter(Boolean)); // replaceChildren(null) escreveria "null"
   }
