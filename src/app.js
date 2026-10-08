@@ -6,6 +6,7 @@ import { store } from './store.js';
 import * as setup from './screens/setup.js';
 import * as month from './screens/month.js';
 import * as checkin from './screens/checkin.js';
+import { shouldOpenCheckin } from './checkin.js';
 
 const root = document.getElementById('app');
 const noticeBox = document.getElementById('notice');
@@ -40,10 +41,11 @@ function navigate(route, { replace = false } = {}) {
   }
 }
 
-// #mes, #mes/YYYY-MM e #checkin; qualquer outra coisa cai no mês atual.
+// #mes, #mes/YYYY-MM, #checkin (aberto à mão) e #checkin/auto (aberto pelo app);
+// qualquer outra coisa cai no mês atual.
 function parseRoute() {
   const [name, arg] = location.hash.replace(/^#/, '').split('/');
-  if (name === 'checkin') return { screen: checkin, params: {} };
+  if (name === 'checkin') return { screen: checkin, params: arg === 'auto' ? { auto: true } : {} };
   const params = /^\d{4}-(0[1-9]|1[0-2])$/.test(arg || '') ? { month: arg } : {};
   return { screen: month, params };
 }
@@ -53,6 +55,13 @@ function render() {
   unmountCurrent = null;
   const ctx = { store, now: () => new Date(), navigate, notify, params: {} };
   let screen = setup; // sem URL/chave, qualquer rota mostra a configuração
+  if (!hasConfig()) {
+    // depois de salvar a configuração (com os dados já carregados), vê se é hora do check-in
+    ctx.navigate = (route, opts) => {
+      navigate(route, opts);
+      maybeOpenCheckin();
+    };
+  }
   if (hasConfig()) {
     const route = parseRoute();
     screen = route.screen;
@@ -62,9 +71,26 @@ function render() {
   unmountCurrent = screen.mount(root, ctx) || null;
 }
 
-// Gancho da T5: abre o check-in sozinho quando for a hora (regras em src/checkin.js).
-// Chamado depois que há dados (cache ou primeiro refresh) e quando o app volta a ficar visível.
-function maybeOpenCheckin() {}
+// Abre o check-in sozinho quando for a hora (regras em src/checkin.js).
+// Chamado depois que há dados (cache ou refresh) e quando o app volta a ficar visível.
+// Idempotente: no máximo uma abertura por vez que o app fica visível, e nunca
+// com o check-in já aberto.
+let openedThisVisit = false;
+function maybeOpenCheckin() {
+  if (openedThisVisit || !hasConfig()) return;
+  const data = store.getData();
+  if (!data) return;
+  if (location.hash.replace(/^#/, '').split('/')[0] === 'checkin') return;
+  let snoozeDay = null;
+  try {
+    snoozeDay = localStorage.getItem('sf.snooze');
+  } catch {
+    // sem acesso ao storage: segue sem o "Agora não"
+  }
+  if (!shouldOpenCheckin(data, new Date(), snoozeDay)) return;
+  openedThisVisit = true;
+  navigate('#checkin/auto');
+}
 
 // Atualiza os dados; erro (sem rede etc.) não derruba a tela, que segue com o cache.
 async function refresh() {
@@ -79,7 +105,10 @@ async function refresh() {
 
 window.addEventListener('hashchange', render);
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') refresh();
+  if (document.visibilityState === 'visible') {
+    openedThisVisit = false;
+    refresh();
+  }
 });
 
 render();
