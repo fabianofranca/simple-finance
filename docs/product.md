@@ -41,7 +41,7 @@ Salário de outubro:  [Já caiu]    [Ainda não]
                   [Confirmar]
 ```
 
-- **Quando abre sozinha:** sem nenhum check-in, sempre (é a base do cálculo). Com "toda vez", a cada abertura do app. Com "1x por dia", se o último check-in não foi hoje. Com "1x por semana", se faz 7 dias ou mais do último. O app confere ao abrir e quando volta para a frente da tela. Se já existe check-in, ela pode tocar em "Agora não", e o app só pergunta de novo quando for aberto outra vez.
+- **Quando abre sozinha:** sem nenhum check-in, sempre (é a base do cálculo). Com "toda vez", a cada abertura do app. Com "1x por dia", se o último check-in não foi hoje. Com "1x por semana", se faz 7 dias ou mais do último. O app confere ao abrir e quando volta para a frente da tela. Se já existe check-in, ela pode tocar em "Agora não", e o app só pergunta de novo no dia seguinte.
 - "Na conta" vem preenchido com o último saldo informado, e ela confirma ou altera. É o saldo em conta, sem desconto nenhum. Sem check-in anterior, o campo vem vazio e é obrigatório.
 - Depois que ela responde "Já paguei" ou "Já caiu" num mês, aquela linha some até o mês seguinte, e os próximos check-ins do mês gravam a resposta "sim" sozinhos.
 - No **primeiro check-in do mês**, as linhas vêm sem nada marcado e "Confirmar" só libera depois que ela responde as duas. Nos seguintes do mesmo mês, vêm marcadas com a última resposta ("Ainda não"), para confirmar com um toque.
