@@ -31,12 +31,17 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `plans/phase-1.md`: plano da Fase 1.
 - `plans/phase-2.md`: plano da Fase 2.
 - `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `ping`, e `seed`/`reset` só com `ambiente = teste`. Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
-- `index.html` + `styles.css`: painel de desenvolvimento da Fase 1 (as telas de verdade chegam na Fase 2).
+- `index.html`: o app (casca, faixa de aviso, manifest e metas de iOS).
+- `dev.html` + `src/dev.js` + `styles.css`: painel de desenvolvimento (fora do app; mesma config e cache).
 - `src/config.js`: URL e chave no `localStorage`.
 - `src/api.js`: cliente do Apps Script (`loadAll`, `save*`, `seed`, `reset`, `ping`), com timeout e medição de latência.
 - `src/store.js`: cache local e fila de gravação em segundo plano.
 - `src/forecast.js`: cálculo do fluxo de caixa (módulo puro).
-- `src/main.js`: liga o painel.
+- `src/app.js`: roteador por hash (`#mes`, `#mes/AAAA-MM`, `#checkin`, `#checkin/auto`), faixa de aviso e abertura automática do check-in.
+- `src/screens/`: telas `setup.js` (configuração), `month.js` (Mês) e `checkin.js` (Check-in), no contrato `mount(el, ctx)` → `unmount()`.
+- `src/money.js`, `src/checkin.js`, `src/month-view.js`: lógica pura das telas (dinheiro pt-BR, regras do check-in, o que a tela Mês exibe).
+- `styles/`: `app.css` (tokens e base), `month.css`, `checkin.css`.
+- `manifest.webmanifest` + `icons/`: app instalável na tela inicial (`icon.svg` é a fonte dos PNGs).
 - `tests/`: testes com `node --test`.
 - `scripts/smoke-test.sh`: teste via `curl`; modo padrão (não destrutivo) e `SMOKE_FULL=1` (só na planilha de teste).
 - `README.md`: setup, painel, abas e desenvolvimento.
