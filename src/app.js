@@ -1,6 +1,6 @@
 // Casca do app: roteador por hash, faixa de aviso e atualização dos dados.
 // Contrato das telas: mount(el, ctx) devolve unmount().
-// ctx = { store, now, navigate, notify, params }
+// ctx = { store, now, navigate, back, notify, params }
 import { loadConfig } from './config.js';
 import { store } from './store.js';
 import * as setup from './screens/setup.js';
@@ -27,18 +27,30 @@ const hasConfig = () => {
   return Boolean(url && key);
 };
 
+// Cada entrada que o próprio app empilha guarda sua profundidade em history.state ({ sf: n }).
+// Entradas de fora (primeiro acesso, hash digitado, recarga) têm profundidade 0.
+const depth = () => (history.state && history.state.sf) || 0;
+
 // Abrir uma rota empilha no histórico (ex.: Mês -> Check-in, e o "voltar" volta ao Mês).
-// Com { replace: true } troca a entrada atual (usado na troca de mês).
+// Com { replace: true } troca a entrada atual, mantendo a profundidade (usado na troca de mês).
 function navigate(route, { replace = false } = {}) {
   const hash = route.startsWith('#') ? route : `#${route}`;
   if (replace) {
-    history.replaceState(null, '', hash);
+    history.replaceState(history.state, '', hash);
     render();
   } else if (location.hash === hash) {
     render();
   } else {
-    location.hash = hash; // dispara hashchange
+    history.pushState({ sf: depth() + 1 }, '', hash); // pushState não dispara hashchange
+    render();
   }
+}
+
+// Volta para a tela de onde esta foi aberta; sem tela anterior do app, vai para o mês atual.
+// O history.back() dispara hashchange, que já renderiza.
+function back() {
+  if (depth() > 0) history.back();
+  else navigate('#mes', { replace: true });
 }
 
 // #mes, #mes/YYYY-MM, #checkin (aberto à mão) e #checkin/auto (aberto pelo app);
@@ -53,7 +65,7 @@ function parseRoute() {
 function render() {
   if (unmountCurrent) unmountCurrent();
   unmountCurrent = null;
-  const ctx = { store, now: () => new Date(), navigate, notify, params: {} };
+  const ctx = { store, now: () => new Date(), navigate, back, notify, params: {} };
   let screen = setup; // sem URL/chave, qualquer rota mostra a configuração
   if (!hasConfig()) {
     // depois de salvar a configuração (com os dados já carregados), vê se é hora do check-in
@@ -111,6 +123,8 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// Recarregar não conta como "veio de outra tela": zera a profundidade da entrada atual.
+if (depth() > 0) history.replaceState(null, '', location.href);
 render();
 if (hasConfig()) {
   if (store.getData()) maybeOpenCheckin();
