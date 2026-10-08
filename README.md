@@ -38,7 +38,7 @@ O app abre pelo ícone "Contas", sem a barra do navegador.
 ## Como o app funciona (Fase 2)
 
 - Na primeira abertura, pede o endereço (URL `/exec`) e a chave.
-- O check-in abre sozinho 1 vez por dia. "Agora não" adia até amanhã (com `toda_vez` na Config, só pula aquela abertura); "Atualizar saldo" (na tela Mês) abre à mão.
+- O check-in abre sozinho 1 vez por dia. "Agora não" adia até amanhã (com `toda_vez` na Config, só pula aquela abertura); "Atualizar saldo de outubro" (na tela Mês) abre à mão.
 - A tela Mês tem ‹ › para trocar de mês e "Próximos meses" no mês atual. Tocar no valor edita; "Usar o valor padrão" aparece quando a conta tem padrão.
 - Estados de gravação: "Salvando…" e "Sem internet, vou tentar de novo".
 
@@ -69,7 +69,7 @@ No celular, com a planilha de teste:
 3. Abra o app, adicione à tela inicial e abra pelo ícone.
 4. A tela Mês mostra Sobra **R$ 850,00** e, em Próximos meses, **R$ 1.600,00 / R$ 1.700,00 / R$ 50,00**.
 5. Edite o Nubank do mês para **1.000,00**: a sobra vai para **R$ 750,00**.
-6. Toque em *Atualizar saldo*, informe um saldo menor e confirme: aparece "Sua sobra … caiu …".
+6. Toque em *Atualizar saldo de outubro*, informe um saldo menor e confirme: aparece "Sua sobra … caiu …".
 7. Modo avião, edite um valor: aparece "Sem internet, vou tentar de novo". Com a rede de volta, a mensagem some.
 
 ## Abas e colunas

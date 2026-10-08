@@ -31,7 +31,7 @@ Ela **não** marca conta por conta como paga, e não vai passar a marcar. Se o a
 
 ## Check-in
 
-Uma tela só. Abre sozinha conforme a frequência configurada (padrão: **1x por dia**) e também pode ser aberta manualmente, pelo botão "Atualizar saldo" da tela Mês.
+Uma tela só. Abre sozinha conforme a frequência configurada (padrão: **1x por dia**) e também pode ser aberta manualmente, pelo botão "Atualizar saldo de outubro" da tela Mês.
 
 ```
 Como está outubro?
@@ -81,7 +81,7 @@ Aviso dentro do app quando fizer mais de 7 dias desde a última atualização se
 
 ## Telas
 
-Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**. Ela chega na Fase 3, junto com as outras telas; na Fase 2 só existe a tela Mês, e o check-in manual abre pelo botão "Atualizar saldo".
+Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**. Ela chega na Fase 3, junto com as outras telas; na Fase 2 só existe a tela Mês, e o check-in manual abre pelo botão "Atualizar saldo de outubro".
 
 O app é instalável na tela inicial do celular (ícone "Contas", abre sem a barra do navegador). O painel de desenvolvimento fica em `dev.html`, fora do app, sem link a partir dele.
 
@@ -95,6 +95,7 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
   - Bloco "Próximos meses" (só no mês atual) com a sobra acumulada dos próximos H meses, com negativos em vermelho. Tocar num mês abre esse mês.
   - Lista do mês em duas partes, "Entradas" e "Contas", na ordem das contas, com nome e valor. Valor padrão aparece em cinza com a palavra "estimado"; sem valor, aparece "—". Conta arquivada só aparece se tiver lançamento no mês. Não há caixas de marcar.
   - Um toque no valor abre a edição. Se a conta tem valor padrão, há também "Usar o valor padrão", que apaga o lançamento do mês.
+  - Rodapé: o botão "Atualizar saldo de outubro" (com o nome do mês corrente) aparece em todos os meses e sempre atualiza o saldo do mês corrente, mesmo quando um mês passado ou futuro está na tela.
   - Gravação em segundo plano, com aviso discreto em linguagem humana: "Salvando…", "Sem internet, vou tentar de novo" ou "Não consegui salvar." com "Tentar de novo".
 - **Posso comprar?:** como descrito acima.
 - **Ajustes:**
