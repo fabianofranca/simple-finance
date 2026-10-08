@@ -3,6 +3,7 @@
 import { addMonths, currentStatus } from '../forecast.js';
 import { monthView, monthLabel, monthName, navRange, resolveMonth } from '../month-view.js';
 import { formatMoney, formatInput, parseMoney } from '../money.js';
+import { reminder } from '../review.js';
 import { h, money, queueLine } from './ui.js';
 
 // Linha do resumo: rótulo à esquerda, valor à direita.
@@ -137,6 +138,18 @@ export function mount(el, ctx) {
     );
   }
 
+  // Faixa do lembrete da revisão semanal; some quando não é a hora.
+  function reminderBanner(data, now) {
+    const text = reminder(data.settings, now);
+    if (!text) return null;
+    return h(
+      'div',
+      { class: 'reminder', role: 'status' },
+      h('span', { class: 'reminder-text' }, text),
+      h('button', { type: 'button', onclick: () => ctx.navigate('#revisao') }, 'Revisar agora')
+    );
+  }
+
   function upcomingBlock(view) {
     if (view.kind !== 'current' || !view.upcoming.length) return null;
     return h(
@@ -218,11 +231,17 @@ export function mount(el, ctx) {
     const parts = [
       header(view, current),
       queueLine(store),
+      reminderBanner(data, today),
       h('section', { class: 'summary' }, ...summary(view)),
       upcomingBlock(view),
       section('Entradas', view.rows.income, month),
       section('Contas', view.rows.expense, month),
-      h('div', { class: 'foot' }, h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#checkin') }, `Atualizar saldo de ${monthName(current)}`))
+      h(
+        'div',
+        { class: 'foot' },
+        h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#checkin') }, `Atualizar saldo de ${monthName(current)}`),
+        h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#revisao') }, 'Revisar valores')
+      )
     ];
     content.replaceChildren(...parts.filter(Boolean)); // replaceChildren(null) escreveria "null"
   }
