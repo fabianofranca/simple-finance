@@ -1,1 +1,58 @@
-/* Estilos da tela Mês (T4). */
+/* Estilos da tela Mês (T4). Usa os tokens de styles/app.css. */
+.month { display: block; }
+
+.month-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.month-title { flex: 1; margin: 0; text-align: center; font-size: 1.25rem; }
+.nav-btn { width: 44px; height: 44px; min-height: 44px; padding: 0; flex: none; background: transparent; color: var(--accent); font-size: 1.75rem; line-height: 1; border: 1px solid var(--line); }
+.nav-btn:disabled { opacity: .3; }
+
+.loading { text-align: center; padding: 48px 0; }
+
+/* Linha de estado da gravação: espaço reservado para a tela não pular. */
+.queue { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: .85rem; color: var(--muted); }
+.queue.error { color: var(--err); }
+
+.summary { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 8px 16px; margin: 0 0 8px; }
+.sum-line { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; }
+.sum-line + .sum-line { border-top: 1px solid var(--line); }
+.sum-label { color: var(--muted); }
+.sum-line.strong { padding-top: 12px; padding-bottom: 12px; }
+.sum-line.strong .sum-label { color: var(--fg); font-weight: 600; }
+.sum-line.strong .money { font-size: 1.5rem; font-weight: 700; }
+
+.money { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.money.neg, .neg { color: var(--err); }
+
+.block { margin-top: 24px; }
+.block h2 { margin: 0 0 4px; font-size: .85rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list > li { border-top: 1px solid var(--line); }
+.list > li:last-child { border-bottom: 1px solid var(--line); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.row-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.empty-note { margin: 8px 0 0; font-size: .9rem; }
+
+/* Botões que parecem texto: valor da conta, mês de "Próximos meses", links. */
+.value-btn, .upcoming, button.link { background: transparent; color: inherit; font-weight: 400; border-radius: 8px; }
+.value-btn { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 96px; min-height: 52px; padding: 6px 8px; margin-right: -8px; font-variant-numeric: tabular-nums; }
+.value-btn .value-text { white-space: nowrap; }
+.value-btn .tag { font-size: .75rem; line-height: 1.2; }
+.value-btn.estimated { color: var(--muted); }
+.value-btn.neg { color: var(--err); }
+.upcoming { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px; padding: 6px 0; text-align: left; border-radius: 0; }
+.upcoming .row-name { text-transform: capitalize; }
+button.link { min-height: 44px; padding: 6px 8px; color: var(--accent); font-size: .9rem; text-decoration: underline; }
+
+.foot { margin-top: 32px; text-align: center; }
+.foot .ghost { border-color: var(--line); color: var(--muted); font-weight: 400; }
+
+/* Diálogo de edição */
+.edit-dialog { width: min(92vw, 360px); max-width: 360px; margin: 12vh auto auto; padding: 20px 16px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--fg); }
+.edit-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.edit-title { margin: 0 0 8px; font-size: 1.1rem; overflow-wrap: anywhere; }
+.edit-dialog label { margin-top: 8px; }
+.edit-dialog input { font-variant-numeric: tabular-nums; }
+.edit-error { margin: 8px 0 0; color: var(--err); font-size: .9rem; }
+.edit-actions { display: flex; gap: 8px; margin-top: 16px; }
+.edit-actions button { flex: 1; }
+.edit-form > button.link { display: block; margin: 8px auto 0; }
