@@ -29,6 +29,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `PLAN.md`: plano da Fase 0 (concluída).
 - `docs/product.md`: especificação de produto, fonte de verdade das decisões.
 - `plans/phase-1.md`: plano da Fase 1.
+- `plans/phase-2.md`: plano da Fase 2.
 - `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `ping`, e `seed`/`reset` só com `ambiente = teste`. Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
 - `index.html` + `styles.css`: painel de desenvolvimento da Fase 1 (as telas de verdade chegam na Fase 2).
 - `src/config.js`: URL e chave no `localStorage`.
@@ -46,7 +47,8 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - [x] Fase 0 executada: smoke test passando e teste validado no celular
 - [x] Planilha explicada e solução de produto definida (docs/product.md)
 - [x] Plano da Fase 1 escrito (plans/phase-1.md)
-- [ ] Fase 1: dados e regras (abas, API, cache, cálculo com testes)
+- [x] Fase 1 executada: dados e regras (abas, API, cache, cálculo com testes); smoke test e teste no celular OK
+- [x] Plano da Fase 2 escrito (plans/phase-2.md)
 - [ ] Fase 2: telas Check-in e Mês
 - [ ] Fase 3: Posso comprar?, atualização semanal guiada, Ajustes e lembrete
 
