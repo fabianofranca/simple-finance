@@ -105,7 +105,7 @@ check "esperava invalid_payload" "$r" 'd.ok !== true && d.error === "invalid_pay
 echo "  ok"
 
 if [ "$FULL" = 1 ]; then
-  at=$(date -u +%Y-%m-%dT%H:%M:%S.%NZ)
+  at=$(node -e "console.log(new Date().toISOString())") # portátil (o date do macOS não tem %N)
   mes=$(date -u +%Y-%m)
   step "saveCheckin duas vezes: um check-in só"
   ck="\"action\":\"saveCheckin\",\"checkin\":{\"at\":\"$at\",\"month\":\"$mes\",\"balance\":100000,\"billsPaid\":false,\"incomeReceived\":true,\"projectedBalance\":100000}"
