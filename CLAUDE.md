@@ -5,6 +5,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 
 - **Usuária final:** não técnica. Prioridades: simplicidade, poucos toques, textos claros em PT-BR.
 - **Desenvolvedor:** Fabiano, dev sênior (Android/iOS, Kotlin), aprendendo Java. Prefere comunicação direta e pragmática, sempre em PT-BR.
+- **Princípio de produto:** mais humano, menos planilha. Sempre que der, o app pergunta em vez de pedir para preencher campos.
 
 ## Decisões técnicas (já fechadas)
 | Tema | Decisão | Motivo |
@@ -14,6 +15,8 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 | Alternativa descartada | Drive API + Google Identity Services com JSON no Drive | Exige projeto no Cloud, tela de consentimento e Client ID |
 | Frontend | HTML/CSS/JS puros com ES modules, sem build | Simplicidade |
 | Segurança | Chave secreta validada no Apps Script. A URL e a chave são digitadas pelo usuário no primeiro acesso e ficam no `localStorage`, nunca no repo | O repo é público e a URL do Apps Script funciona como senha |
+| Ambientes | A planilha da Fase 0 é a de teste do Fabiano (massa de teste gerada pelo app, liberada por `ambiente = teste` na aba Config). A planilha da esposa é criada do zero na entrega | Testar pelo celular à vontade sem risco aos dados dela |
+| Testes | `node --test` nativo, sem npm | Sem dependências nem build |
 
 ## Pegadinhas conhecidas
 - **CORS:** todo POST usa `Content-Type: text/plain;charset=utf-8` e nenhum header customizado. O Apps Script não suporta preflight.
@@ -24,6 +27,8 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 
 ## Arquivos
 - `PLAN.md`: plano da Fase 0 (concluída).
+- `docs/product.md`: especificação de produto, fonte de verdade das decisões.
+- `plans/phase-1.md`: plano da Fase 1.
 - `apps-script/Code.gs`: backend. GET lê as linhas da aba `Teste`; POST aceita as actions `append` e `ping`. É copiado manualmente para o editor do Apps Script.
 - `index.html` + `styles.css`: página de teste de conexão.
 - `src/config.js`: leitura e gravação da config (URL e chave) no `localStorage`.
@@ -36,8 +41,11 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - [x] Arquitetura definida
 - [x] Plano da Fase 0 escrito
 - [x] Fase 0 executada: smoke test passando e teste validado no celular
-- [ ] Fase 1: modelar os dados a partir da planilha Excel dela. O Fabiano ainda vai explicar como a planilha funciona (colunas, abas, fórmulas, uso no dia a dia)
-- [ ] Fase 2 em diante: telas do app (a ideia inicial é uma lista do mês com botão "paguei" e destaque para vencimentos)
+- [x] Planilha explicada e solução de produto definida (docs/product.md)
+- [x] Plano da Fase 1 escrito (plans/phase-1.md)
+- [ ] Fase 1: dados e regras (abas, API, cache, cálculo com testes)
+- [ ] Fase 2: telas Check-in e Mês
+- [ ] Fase 3: Posso comprar?, atualização semanal guiada, Ajustes e lembrete
 
 ## Como trabalhar neste repo
 - **Fases:** cada fase tem seu próprio plano em Markdown, aprovado pelo Fabiano antes de executar.
