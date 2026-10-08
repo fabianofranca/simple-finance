@@ -6,11 +6,15 @@ import { store } from './store.js';
 import * as setup from './screens/setup.js';
 import * as month from './screens/month.js';
 import * as checkin from './screens/checkin.js';
+import * as buy from './screens/buy.js';
+import * as review from './screens/review.js';
+import * as settings from './screens/settings.js';
 import { shouldOpenCheckin } from './checkin.js';
 
 const root = document.getElementById('app');
 const noticeBox = document.getElementById('notice');
 const noticeText = document.getElementById('notice-text');
+const tabbar = document.getElementById('tabbar');
 let unmountCurrent = null;
 
 // Faixa de aviso no topo, só em memória (some ao recarregar).
@@ -53,20 +57,46 @@ function back() {
   else navigate('#mes', { replace: true });
 }
 
-// #mes, #mes/YYYY-MM, #checkin (aberto à mão) e #checkin/auto (aberto pelo app);
+// Tabela de rotas: nome do hash -> tela e aba da barra inferior (null = sem barra).
+const ROUTES = {
+  mes: { screen: month, tab: 'mes' },
+  comprar: { screen: buy, tab: 'comprar' },
+  ajustes: { screen: settings, tab: 'ajustes' },
+  checkin: { screen: checkin, tab: null },
+  revisao: { screen: review, tab: null }
+};
+
+// #mes, #mes/YYYY-MM, #comprar, #ajustes, #revisao, #checkin (à mão) e #checkin/auto (pelo app);
 // qualquer outra coisa cai no mês atual.
 function parseRoute() {
   const [name, arg] = location.hash.replace(/^#/, '').split('/');
-  if (name === 'checkin') return { screen: checkin, params: arg === 'auto' ? { auto: true } : {} };
-  const params = /^\d{4}-(0[1-9]|1[0-2])$/.test(arg || '') ? { month: arg } : {};
-  return { screen: month, params };
+  const route = ROUTES[name] || ROUTES.mes;
+  let params = {};
+  if (route.screen === checkin) params = arg === 'auto' ? { auto: true } : {};
+  else if (route.screen === month) params = /^\d{4}-(0[1-9]|1[0-2])$/.test(arg || '') ? { month: arg } : {};
+  return { ...route, params };
 }
+
+// Barra inferior: só aparece quando a rota tem aba; marca a aba ativa.
+function updateTabbar(tab) {
+  tabbar.hidden = tab === null;
+  document.body.classList.toggle('has-tabbar', tab !== null);
+  for (const btn of tabbar.querySelectorAll('button[data-tab]')) {
+    if (btn.dataset.tab === tab) btn.setAttribute('aria-current', 'page');
+    else btn.removeAttribute('aria-current');
+  }
+}
+tabbar.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('button[data-tab]');
+  if (btn) navigate(`#${btn.dataset.tab}`, { replace: true }); // "Mês" vale #mes: volta ao mês atual
+});
 
 function render() {
   if (unmountCurrent) unmountCurrent();
   unmountCurrent = null;
   const ctx = { store, now: () => new Date(), navigate, back, notify, params: {} };
-  let screen = setup; // sem URL/chave, qualquer rota mostra a configuração
+  let screen = setup;
+  let tab = null; // sem URL/chave, qualquer rota mostra a configuração
   if (!hasConfig()) {
     // depois de salvar a configuração (com os dados já carregados), vê se é hora do check-in
     ctx.navigate = (route, opts) => {
@@ -77,8 +107,10 @@ function render() {
   if (hasConfig()) {
     const route = parseRoute();
     screen = route.screen;
+    tab = route.tab;
     ctx.params = route.params;
   }
+  updateTabbar(tab);
   root.replaceChildren();
   unmountCurrent = screen.mount(root, ctx) || null;
 }
@@ -92,7 +124,8 @@ function maybeOpenCheckin() {
   if (openedThisVisit || !hasConfig()) return;
   const data = store.getData();
   if (!data) return;
-  if (location.hash.replace(/^#/, '').split('/')[0] === 'checkin') return;
+  const current = location.hash.replace(/^#/, '').split('/')[0];
+  if (current === 'checkin' || current === 'revisao') return;
   let snoozeDay = null;
   try {
     snoozeDay = localStorage.getItem('sf.snooze');

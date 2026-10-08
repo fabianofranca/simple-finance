@@ -33,3 +33,16 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid 
 .setup .actions { margin-top: 20px; }
 .setup .actions button { width: 100%; }
 .setup .error { margin-top: 16px; padding: 12px; border: 1px solid var(--err); border-radius: 10px; color: var(--err); white-space: pre-wrap; }
+
+/* Barra inferior */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; display: flex; justify-content: center; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+.tabbar button { flex: 1; max-width: 160px; min-height: 56px; padding: 6px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 0; background: transparent; color: var(--muted); font-size: .8rem; font-weight: 500; line-height: 1.2; }
+.tabbar .tab-icon { font-size: 1.25rem; line-height: 1; }
+.tabbar button[aria-current="page"] { color: var(--accent); font-weight: 700; }
+body.has-tabbar #app { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+
+/* Diálogo de confirmação */
+.confirm-dialog { width: min(92vw, 360px); margin: 20vh auto auto; padding: 20px 16px 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--fg); }
+.confirm-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+.confirm-text { color: var(--fg); margin: 0 0 16px; }
+.confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }

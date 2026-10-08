@@ -16,6 +16,9 @@
 <link rel="stylesheet" href="styles/app.css">
 <link rel="stylesheet" href="styles/month.css">
 <link rel="stylesheet" href="styles/checkin.css">
+<link rel="stylesheet" href="styles/buy.css">
+<link rel="stylesheet" href="styles/review.css">
+<link rel="stylesheet" href="styles/settings.css">
 </head>
 <body>
 <div id="notice" class="notice" role="status" hidden>
@@ -23,6 +26,11 @@
   <button id="notice-close" type="button" aria-label="Fechar aviso">×</button>
 </div>
 <main id="app"></main>
+<nav id="tabbar" class="tabbar" aria-label="Navegação principal" hidden>
+  <button type="button" data-tab="mes"><span class="tab-icon" aria-hidden="true">▤</span><span>Mês</span></button>
+  <button type="button" data-tab="comprar"><span class="tab-icon" aria-hidden="true">$</span><span>Posso comprar?</span></button>
+  <button type="button" data-tab="ajustes"><span class="tab-icon" aria-hidden="true">⚙</span><span>Ajustes</span></button>
+</nav>
 <script type="module" src="src/app.js"></script>
 </body>
 </html>
