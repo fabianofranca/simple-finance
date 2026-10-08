@@ -73,15 +73,29 @@ Caso obrigatório: R = 1.500 e D = 1.000 dão sobra de 500; no mês seguinte, R 
 
 ## Atualização semanal guiada
 
-Em vez de navegar e editar valores, o app pergunta uma conta de cada vez, começando pelo próximo mês: "A fatura do Nubank de novembro ainda está em R$ 900? [Sim] [Mudou]". Com "Mudou", ela digita o novo valor. Ao fim, o app grava os lançamentos alterados de uma vez e a data da revisão. Responder "Sim" não altera lançamento nenhum, então a data da última revisão fica guardada à parte.
+Em vez de navegar e editar valores, o app pergunta uma conta de cada vez.
+
+- Revisa só o **próximo mês** (mês atual + 1) e só as **contas de despesa ativas**, na ordem das contas. Salário e outras entradas ficam de fora.
+- Uma conta por vez, com progresso ("2 de 5"):
+  - com valor: "Nubank · novembro — Ainda está em R$ 1.000,00?" [Sim] [Mudou]. Se o valor vem do padrão, a pergunta deixa claro que é estimado;
+  - sem valor: "C&A · novembro — Já sabe quanto vai ser em novembro?" [Ainda não sei] [Informar];
+  - sempre há "Pular".
+- "Sim", "Pular" e "Ainda não sei" não gravam nada. "Mudou" e "Informar" abrem o campo de valor, e "Salvar" grava **na hora**, para nada se perder se ela parar no meio.
+- No fim: "Pronto! Sua sobra de novembro ficou em R$ 1.400,00 (antes R$ 1.600,00)", comparando com a sobra calculada no início da revisão. Se não mudou: "Pronto! Sua sobra de novembro continua em R$ 1.600,00". O botão "Ver os próximos meses" leva ao Mês.
+- A data da última revisão (`ultima_revisao`) só é gravada ao concluir. Sair no meio mantém o que já foi salvo e não conta como revisão. Como "Sim" não altera lançamento nenhum, essa data fica guardada à parte.
 
 ## Lembrete
 
-Aviso dentro do app quando fizer mais de 7 dias desde a última atualização semanal. Não há push, porque um site estático não tem servidor. No futuro (fora do escopo por ora), pode haver um e-mail semanal enviado pelo Apps Script.
+Faixa no topo da tela Mês quando ela nunca revisou ou faz mais de 7 dias desde a última revisão:
+
+- "Faz 9 dias que você não revisa as contas." [Revisar agora]
+- sem revisão anterior: "Que tal revisar as contas do mês que vem?" [Revisar agora]
+
+A faixa some quando a revisão termina. A tela Mês tem também um botão fixo "Revisar valores". Não há push, porque um site estático não tem servidor. No futuro (fora do escopo por ora), pode haver um e-mail semanal enviado pelo Apps Script.
 
 ## Telas
 
-Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**. Ela chega na Fase 3, junto com as outras telas; na Fase 2 só existe a tela Mês, e o check-in manual abre pelo botão "Atualizar saldo de outubro".
+Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**. Aparece nessas três telas e some nas telas de fluxo (Check-in e Revisão) e na configuração. Trocar de item não empilha histórico. Toques de pelo menos 44px, item ativo destacado e espaço para a área segura do iPhone.
 
 O app é instalável na tela inicial do celular (ícone "Contas", abre sem a barra do navegador). O painel de desenvolvimento fica em `dev.html`, fora do app, sem link a partir dele.
 
@@ -95,14 +109,20 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
   - Bloco "Próximos meses" (só no mês atual) com a sobra acumulada dos próximos H meses, com negativos em vermelho. Tocar num mês abre esse mês.
   - Lista do mês em duas partes, "Entradas" e "Contas", na ordem das contas, com nome e valor. Valor padrão aparece em cinza com a palavra "estimado"; sem valor, aparece "—". Conta arquivada só aparece se tiver lançamento no mês. Não há caixas de marcar.
   - Um toque no valor abre a edição. Se a conta tem valor padrão, há também "Usar o valor padrão", que apaga o lançamento do mês.
-  - Rodapé: o botão "Atualizar saldo de outubro" (com o nome do mês corrente) aparece em todos os meses e sempre atualiza o saldo do mês corrente, mesmo quando um mês passado ou futuro está na tela.
+  - Rodapé: o botão "Atualizar saldo de outubro" (com o nome do mês corrente) aparece em todos os meses e sempre atualiza o saldo do mês corrente, mesmo quando um mês passado ou futuro está na tela. Ao lado, "Revisar valores" abre a revisão semanal.
+  - No topo, a faixa do lembrete, quando for a hora.
   - Gravação em segundo plano, com aviso discreto em linguagem humana: "Salvando…", "Sem internet, vou tentar de novo" ou "Não consegui salvar." com "Tentar de novo".
-- **Posso comprar?:** como descrito acima.
+- **Revisão:** como descrito em "Atualização semanal guiada".
+- **Posso comprar?:**
+  - Campos "Valor da parcela" (teclado numérico) e "Parcelas" (− n +, de 1 a 24, começa em 1), e o botão "Ver".
+  - Resposta grande: "Pode comprar" ou "Não pode", com o primeiro mês negativo e quanto falta. Se a previsão já fica negativa sem a compra, o app diz isso antes.
+  - Lista dos próximos H meses com a sobra antes → depois da compra, negativos em vermelho.
 - **Ajustes:**
-  - Contas: criar, renomear, arquivar, tipo, valor padrão e ordem.
-  - Frequência do check-in: toda vez, 1x por dia ou 1x por semana.
-  - Horizonte.
-  - URL e chave.
+  - Contas: lista das ativas na ordem, com nome, tipo e valor padrão. Tocar abre a edição (nome, "Conta" ou "Entrada", valor padrão opcional). Setas ↑↓ mudam a ordem. "Arquivar" em vez de excluir, com confirmação; o histórico nunca é apagado. Seção "Arquivadas", recolhida, com "Reativar". "Nova conta" pede nome, tipo e valor padrão opcional e entra no fim da lista.
+  - Check-in: "Toda vez", "1x por dia" ou "1x por semana".
+  - Próximos meses: horizonte de 1 a 12 meses, usado no Mês e no Posso comprar?.
+  - Conexão: o endereço da planilha resumido e "Trocar planilha", com confirmação (apaga URL, chave e dados guardados no aparelho e volta para a configuração).
+  - Tudo grava em segundo plano, com o mesmo aviso de gravação da tela Mês.
 
 ## Dados
 
@@ -117,7 +137,8 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
 |---|---|
 | 1 — dados e regras | Abas, API, cache local com fila de gravação, cálculo com testes. Plano: `plans/phase-1.md` |
 | 2 — substitui a planilha | Telas Check-in e Mês (com Próximos meses), app instalável. Plano: `plans/phase-2.md` |
-| 3 | Posso comprar?, atualização semanal guiada, Ajustes e lembrete |
+| 3 | Posso comprar?, revisão semanal guiada, Ajustes, barra inferior e lembrete. Plano: `plans/phase-3.md` |
+| Entrega | Planilha da esposa, link de configuração e carga real |
 
 ## Fora do escopo
 
