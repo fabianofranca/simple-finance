@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contas · painel de desenvolvimento</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main>
+  <h1>Painel de desenvolvimento</h1>
+  <p>Teste da Fase 1: conexão, dados, fila de gravação e previsão.</p>
+
+  <fieldset>
+    <legend>Configuração</legend>
+    <label for="url">URL do app da Web</label>
+    <input id="url" type="url" placeholder="Cole a URL que termina em /exec">
+    <label for="key">Chave</label>
+    <input id="key" type="password" autocomplete="off">
+    <div class="row">
+      <button id="save">Salvar configuração</button>
+      <button id="clear" class="ghost">Apagar configuração</button>
+    </div>
+  </fieldset>
+
+  <section id="queue" class="queue" aria-live="polite">
+    <div id="queue-text">Tudo salvo</div>
+    <div id="queue-error" class="err" hidden></div>
+    <div id="queue-actions" class="row" hidden>
+      <button id="retry">Tentar de novo</button>
+      <button id="discard" class="ghost">Descartar pendências</button>
+    </div>
+  </section>
+
+  <div class="row">
+    <button id="ping">Testar conexão</button>
+    <button id="read" class="ghost">Carregar dados</button>
+    <button id="forecast" class="ghost">Ver previsão</button>
+    <button id="settings" class="ghost">Regravar ajustes</button>
+  </div>
+  <div id="test-tools" class="row" hidden>
+    <button id="seed" class="ghost">Gerar massa de teste</button>
+    <button id="reset" class="ghost danger">Apagar tudo</button>
+  </div>
+
+  <h2>Resultado</h2>
+  <div id="summary" hidden></div>
+  <pre id="out">Nenhuma chamada feita ainda.</pre>
+</main>
+<script type="module" src="src/dev.js"></script>
+</body>
+</html>
