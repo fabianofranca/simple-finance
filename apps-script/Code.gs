@@ -10,6 +10,7 @@
 // 4. Copie a URL que termina em /exec (não use a /dev).
 // 5. A primeira chamada (ex.: "Testar conexão") cria as abas Contas, Lancamentos,
 //    Checkins e Config, com cabeçalhos e formatos.
+//    Padrões da Config: check-in 1x por dia (diaria) e horizonte de 3 meses.
 // 6. Só na planilha de TESTE: na aba Config, adicione a linha  ambiente | teste
 //    (libera seed e reset). Na planilha da esposa essa linha não existe.
 //
@@ -89,7 +90,7 @@ const SHEETS = {
 };
 
 const CONFIG_DEFAULTS = [
-  ['frequencia_checkin', 'semanal'],
+  ['frequencia_checkin', 'diaria'],
   ['horizonte_meses', '3'],
   ['ultima_revisao', '']
 ];
@@ -402,7 +403,7 @@ function readSettings(config) {
   const map = {};
   config.rows.forEach(function (r) { map[readText(r.v.chave).trim()] = readText(r.v.valor).trim(); });
 
-  const freqSheet = map.frequencia_checkin || 'semanal';
+  const freqSheet = map.frequencia_checkin || 'diaria';
   if (!(freqSheet in FREQ_TO_API)) fail('bad_sheet_data');
 
   const horizon = map.horizonte_meses ? Number(map.horizonte_meses) : 3;
