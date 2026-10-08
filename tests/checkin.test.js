@@ -82,16 +82,17 @@ test('último check-in é o de maior `at`, não o último da lista', () => {
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 20), null), false);
 });
 
-test('"Agora não": adiado hoje não abre; amanhã volta a abrir', () => {
-  const d = data({ checkins: [ck(local(2026, 10, 10), '2026-10')], settings: { checkinFrequency: 'always' } });
+test('"Agora não": adiado hoje não abre; amanhã volta a abrir (daily)', () => {
+  const d = data({ checkins: [ck(local(2026, 10, 10), '2026-10')], settings: { checkinFrequency: 'daily' } });
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 9), '2026-10-15'), false);
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 23, 59), '2026-10-15'), false);
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 16, 0, 0), '2026-10-15'), true);
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 9), null), true);
+});
 
-  const daily = { ...d, settings: { checkinFrequency: 'daily' } };
-  assert.equal(shouldOpenCheckin(daily, local(2026, 10, 15, 9), '2026-10-15'), false);
-  assert.equal(shouldOpenCheckin(daily, local(2026, 10, 16, 9), '2026-10-15'), true);
+test('"Agora não" com "toda vez" é ignorado', () => {
+  const d = data({ checkins: [ck(local(2026, 10, 10), '2026-10')], settings: { checkinFrequency: 'always' } });
+  assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 9), '2026-10-15'), true);
 });
 
 test('formulário sem nenhum check-in: saldo vazio e linhas sem seleção', () => {

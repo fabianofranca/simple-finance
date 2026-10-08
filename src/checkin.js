@@ -33,12 +33,14 @@ function ofMonth(data, month) {
 }
 
 // Abre sozinho? Sem check-in, sempre (e o "Agora não" não vale).
+// Com "toda vez" (always) o "Agora não" também é ignorado: só pula aquela abertura.
+// Com daily e weekly, adiado hoje não abre até o dia seguinte.
 export function shouldOpenCheckin(data, now, snoozeDay = null) {
   const last = lastOf(data.checkins);
   if (!last) return true;
-  if (snoozeDay && snoozeDay === localDay(now)) return false;
   const frequency = data.settings?.checkinFrequency || 'daily';
   if (frequency === 'always') return true;
+  if (snoozeDay && snoozeDay === localDay(now)) return false;
   if (frequency === 'weekly') return now.getTime() - new Date(last.at).getTime() >= WEEK_MS;
   return localDay(new Date(last.at)) !== localDay(now);
 }
