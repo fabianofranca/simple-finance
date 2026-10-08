@@ -1,16 +1,20 @@
 import { loadConfig, saveConfig, clearConfig } from './config.js';
-import { getRows, appendRow, ping } from './api.js';
+import { loadAll, ping } from './api.js';
 
 const $ = id => document.getElementById(id);
 
 const HINTS = {
   network: 'Confira se a URL termina em /exec (e não /dev) e se a implantação está com acesso "Qualquer pessoa".',
   timeout: 'A rede pode estar lenta. Tente de novo em alguns segundos.',
-  unauthorized: 'A chave não confere com o SECRET do Code.gs.',
+  unauthorized: 'A chave não confere com a propriedade SECRET do script (Configurações do projeto → Propriedades do script).',
   bad_response: 'A URL provavelmente não é a do app da Web. Confira se termina em /exec.',
   unknown_action: 'O script implantado está desatualizado. Crie uma nova versão da implantação.',
   invalid_json: 'O script implantado está desatualizado. Crie uma nova versão da implantação.',
-  config: 'Preencha a URL e a chave e toque em "Salvar configuração".'
+  config: 'Preencha a URL e a chave e toque em "Salvar configuração".',
+  busy: 'A planilha está ocupada com outra gravação. Tente de novo em alguns segundos.',
+  forbidden: 'Essa ação só funciona na planilha de teste (linha ambiente = teste na aba Config).',
+  invalid_payload: 'O servidor recusou os dados enviados. Provavelmente é um erro do app.',
+  bad_sheet_data: 'O Sheets converteu um mês ou id em data. Formate a coluna como texto simples.'
 };
 
 function show(data) {
@@ -47,13 +51,7 @@ $('clear').onclick = () => {
   show('Configuração apagada.');
 };
 $('ping').onclick = () => run(ping);
-$('read').onclick = () => run(getRows);
-$('append').onclick = () => run(() => appendRow({
-  descricao: 'Conta de teste',
-  valor: 123.45,
-  vencimento: new Date().toISOString().slice(0, 10),
-  pago: false
-}));
+$('read').onclick = () => run(loadAll);
 
 const cfg = loadConfig();
 if (cfg.url) $('url').value = cfg.url;

@@ -43,5 +43,10 @@ async function request(method, payload) {
 }
 
 export const ping = () => request('POST', { action: 'ping' });
-export const getRows = () => request('GET');
-export const appendRow = row => request('POST', { action: 'append', row });
+export const loadAll = () => request('GET');
+export const saveAccount = account => request('POST', { action: 'saveAccount', account });
+export const saveEntries = entries => request('POST', { action: 'saveEntries', entries });
+export const saveCheckin = checkin => request('POST', { action: 'saveCheckin', checkin });
+export const saveSettings = settings => request('POST', { action: 'saveSettings', settings });
+export const seed = () => request('POST', { action: 'seed' });
+export const reset = () => request('POST', { action: 'reset' });
