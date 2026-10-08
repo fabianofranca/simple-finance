@@ -370,3 +370,106 @@ test('subscribe é chamado quando dados ou fila mudam e o cancelamento funciona'
   await flush();
   assert.equal(n, final);
 });
+
+test('clear: apaga dados e fila na memória e no storage, sem buscar nada', async () => {
+  const { store, api, storage, timers } = await loaded({ server: { accounts: [account] } });
+  api.failures.push('network');
+  store.saveSettings({ horizonMonths: 4 });
+  await flush();
+  assert.equal(store.getQueueState().pending, 1);
+  assert.equal(timers.pending.length, 1, 'tem uma nova tentativa agendada');
+  assert.ok(storage.map.has('sf.data'));
+  const calls = api.calls.length;
+
+  let notified = 0;
+  store.subscribe(() => notified++);
+  store.clear();
+
+  assert.equal(store.getData(), null);
+  assert.deepEqual(store.getQueueState(), { pending: 0, sending: false, error: null });
+  assert.equal(storage.map.has('sf.data'), false);
+  assert.equal(storage.map.has('sf.queue'), false);
+  assert.equal(timers.pending.length, 0, 'o timer de nova tentativa foi cancelado');
+  assert.ok(notified >= 1, 'avisa os ouvintes');
+  await flush();
+  assert.equal(api.calls.length, calls, 'não envia nem busca nada');
+});
+
+test('clear: zera o erro que travava a fila', async () => {
+  const { store, api } = await loaded();
+  api.failures.push('unauthorized');
+  store.saveSettings({ horizonMonths: 4 });
+  await flush();
+  assert.equal(store.getQueueState().error.code, 'unauthorized');
+  store.clear();
+  assert.equal(store.getQueueState().error, null);
+  // a fila destravou: uma gravação nova volta a ser enviada
+  await store.refresh();
+  store.saveSettings({ horizonMonths: 5 });
+  await flush();
+  assert.equal(api.calls.length, 2);
+  assert.equal(store.getQueueState().pending, 0);
+});
+
+test('clear: um envio em andamento não reentra na fila nem no storage', async () => {
+  const api = fakeApi();
+  let release;
+  const gate = new Promise(r => { release = r; });
+  api.saveSettings = s => {
+    api.calls.push({ type: 'saveSettings', payload: s });
+    return gate.then(() => ({ ok: true }));
+  };
+  const { store, storage } = await loaded({ api });
+  store.saveSettings({ horizonMonths: 4 });
+  await flush();
+  assert.equal(store.getQueueState().sending, true);
+
+  store.clear();
+  release();
+  await flush();
+
+  assert.deepEqual(store.getQueueState(), { pending: 0, sending: false, error: null });
+  assert.equal(store.getData(), null);
+  assert.equal(storage.map.has('sf.data'), false, 'o fim do envio não reescreve o cache');
+  assert.equal(storage.map.has('sf.queue'), false);
+  assert.equal(api.calls.length, 1);
+});
+
+test('clear: uma busca em andamento não repõe os dados da planilha antiga', async () => {
+  const { store, api, storage } = await loaded({ server: { accounts: [account] } });
+  let release;
+  api.loadAllDelay = new Promise(r => { release = r; });
+  const pending = store.refresh();
+  store.clear();
+  release();
+  await pending;
+  assert.equal(store.getData(), null);
+  assert.equal(storage.map.has('sf.data'), false);
+});
+
+test('clear: uma store nova com o mesmo storage começa vazia', async () => {
+  const storage = memoryStorage();
+  const first = setup({ storage, server: { accounts: [account] } });
+  await first.store.refresh();
+  first.api.failures.push('network');
+  first.store.saveEntries([{ accountId: 'a1', month: '2026-11', amount: 700 }]);
+  await flush();
+  assert.equal(first.store.getQueueState().pending, 1);
+
+  first.store.clear();
+
+  const api2 = fakeApi();
+  const second = setup({ storage, api: api2 });
+  assert.equal(second.store.getData(), null);
+  assert.equal(second.store.getQueueState().pending, 0);
+  await flush();
+  assert.equal(api2.calls.length, 0, 'nada para reenviar');
+});
+
+test('clear: depois de limpar, refresh traz os dados da planilha nova', async () => {
+  const { store, api } = await loaded({ server: { accounts: [account] } });
+  store.clear();
+  api.server.accounts = [{ ...account, id: 'b1', name: 'Outra' }];
+  await store.refresh();
+  assert.deepEqual(store.getData().accounts.map(a => a.id), ['b1']);
+});
