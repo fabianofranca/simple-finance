@@ -121,8 +121,8 @@ export function mount(el, ctx) {
       }));
     }
 
-    // Volta ao Mês sem deixar o check-in no "voltar".
-    const leave = () => ctx.navigate('#mes', { replace: true });
+    // Volta para a tela de onde o check-in foi aberto (ou o Mês atual, sem tela anterior).
+    const leave = () => ctx.back();
 
     let done = false;
     confirm.addEventListener('click', () => {
