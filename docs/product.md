@@ -31,7 +31,7 @@ Ela **não** marca conta por conta como paga, e não vai passar a marcar. Se o a
 
 ## Check-in
 
-Uma tela só. Abre sozinha conforme a frequência configurada (padrão: **1x por dia**) e também pode ser aberta manualmente, pelo botão "Conferir saldo" da tela Mês.
+Uma tela só. Abre sozinha conforme a frequência configurada (padrão: **1x por dia**) e também pode ser aberta manualmente, pelo botão "Atualizar saldo" da tela Mês.
 
 ```
 Como está outubro?
@@ -41,7 +41,7 @@ Salário de outubro:  [Já caiu]    [Ainda não]
                   [Confirmar]
 ```
 
-- **Quando abre sozinha:** sem nenhum check-in, sempre (é a base do cálculo). Com "toda vez", a cada abertura do app. Com "1x por dia", se o último check-in não foi hoje. Com "1x por semana", se faz 7 dias ou mais do último. O app confere ao abrir e quando volta para a frente da tela. Se já existe check-in, ela pode tocar em "Agora não", e o app só pergunta de novo no dia seguinte.
+- **Quando abre sozinha:** sem nenhum check-in, sempre (é a base do cálculo). Com "toda vez", a cada abertura do app. Com "1x por dia", se o último check-in não foi hoje. Com "1x por semana", se faz 7 dias ou mais do último. O app confere ao abrir e quando volta para a frente da tela. Se já existe check-in, ela pode tocar em "Agora não", e o app só pergunta de novo no dia seguinte (com "toda vez", na próxima abertura do app).
 - "Na conta" vem preenchido com o último saldo informado, e ela confirma ou altera. É o saldo em conta, sem desconto nenhum. Sem check-in anterior, o campo vem vazio e é obrigatório.
 - Depois que ela responde "Já paguei" ou "Já caiu" num mês, aquela linha some até o mês seguinte, e os próximos check-ins do mês gravam a resposta "sim" sozinhos.
 - No **primeiro check-in do mês**, as linhas vêm sem nada marcado e "Confirmar" só libera depois que ela responde as duas. Nos seguintes do mesmo mês, vêm marcadas com a última resposta ("Ainda não"), para confirmar com um toque.
@@ -81,7 +81,7 @@ Aviso dentro do app quando fizer mais de 7 dias desde a última atualização se
 
 ## Telas
 
-Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**. Ela chega na Fase 3, junto com as outras telas; na Fase 2 só existe a tela Mês, e o check-in manual abre pelo botão "Conferir saldo".
+Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**. Ela chega na Fase 3, junto com as outras telas; na Fase 2 só existe a tela Mês, e o check-in manual abre pelo botão "Atualizar saldo".
 
 O app é instalável na tela inicial do celular (ícone "Contas", abre sem a barra do navegador). O painel de desenvolvimento fica em `dev.html`, fora do app, sem link a partir dele.
 
