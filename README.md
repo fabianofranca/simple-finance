@@ -1,6 +1,9 @@
 # Simple Finance
 
-App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-1.md`](plans/phase-1.md).
+App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-2.md`](plans/phase-2.md).
+
+- **`index.html` é o app** (telas Check-in e Mês).
+- **`dev.html` é o painel de desenvolvimento**: mesmo site, mesma configuração e mesmo cache. Abra em `…/simple-finance/dev.html`.
 
 ## Backend (primeira vez)
 
@@ -25,9 +28,23 @@ Cole o `Code.gs` inteiro de novo e use *Implantar → Gerenciar implantações �
 
 *Settings → Pages*, branch `main`, pasta raiz.
 
-## Painel de desenvolvimento
+## Instalar no celular
 
-O `index.html` é um painel de desenvolvimento até a Fase 2 trazer as telas de verdade. Na primeira abertura, informe a URL `/exec` e a chave e toque em *Salvar configuração* (ficam só no `localStorage`).
+- **Android:** Chrome → menu ⋮ → "Instalar app" (ou "Adicionar à tela inicial").
+- **iPhone:** Safari → Compartilhar → "Adicionar à Tela de Início".
+
+O app abre pelo ícone "Contas", sem a barra do navegador.
+
+## Como o app funciona (Fase 2)
+
+- Na primeira abertura, pede o endereço (URL `/exec`) e a chave.
+- O check-in abre sozinho 1 vez por dia. "Agora não" adia até amanhã; "Conferir saldo" (na tela Mês) abre à mão.
+- A tela Mês tem ‹ › para trocar de mês e "Próximos meses" no mês atual. Tocar no valor edita; "Usar o valor padrão" aparece quando a conta tem padrão.
+- Estados de gravação: "Salvando…" e "Sem internet, vou tentar de novo".
+
+## Painel de desenvolvimento (`dev.html`)
+
+Na primeira abertura, informe a URL `/exec` e a chave e toque em *Salvar configuração* (ficam só no `localStorage`, compartilhado com o app).
 
 - **Estado da fila** (sempre visível): "Tudo salvo", "Enviando…" ou "N gravação(ões) pendente(s)". Em erro de chave ou de dados, aparecem *Tentar de novo* e *Descartar pendências*.
 - **Testar conexão:** `ping`, mostra a latência.
@@ -36,12 +53,24 @@ O `index.html` é um painel de desenvolvimento até a Fase 2 trazer as telas de 
 - **Regravar ajustes:** grava os ajustes atuais de novo (idempotente); serve para testar a fila.
 - **Gerar massa de teste / Apagar tudo:** só aparecem na planilha de teste.
 
-Roteiro de conferência no celular:
+Roteiro de conferência do painel (Fase 1):
 
 1. *Gerar massa de teste*, depois *Ver previsão*.
 2. Conferir com a tabela da massa: sobra no fim do mês atual **R$ 850**; próximos meses **R$ 1.600, R$ 1.700 e R$ 50**; meses seguintes da massa **R$ 400 e R$ 1.250**.
 3. Modo avião, *Regravar ajustes*: deve mostrar 1 pendente.
 4. Rede de volta: a fila esvazia e volta para "Tudo salvo".
+
+## Roteiro de conferência da Fase 2
+
+No celular, com a planilha de teste:
+
+1. Implante o `Code.gs` atual (*Gerenciar implantações → Editar → Nova versão*).
+2. No `dev.html`, toque em *Apagar tudo* e depois *Gerar massa de teste* (assim a `Config` fica com o check-in diário).
+3. Abra o app, adicione à tela inicial e abra pelo ícone.
+4. A tela Mês mostra Sobra **R$ 850,00** e, em Próximos meses, **R$ 1.600,00 / R$ 1.700,00 / R$ 50,00**.
+5. Edite o Nubank do mês para **1.000,00**: a sobra vai para **R$ 750,00**.
+6. Toque em *Conferir saldo*, informe um saldo menor e confirme: aparece "Sua sobra … caiu …".
+7. Modo avião, edite um valor: aparece "Sem internet, vou tentar de novo". Com a rede de volta, a mensagem some.
 
 ## Abas e colunas
 
@@ -76,6 +105,10 @@ Ela mostra só lançamentos, sem os valores padrão.
 - Smoke test: `cp .env.example .env` e preencha `APPS_SCRIPT_URL` e `APPS_SCRIPT_KEY` (o `.env` está no `.gitignore`).
   - `./scripts/smoke-test.sh`: modo padrão, não destrutivo.
   - `SMOKE_FULL=1 ./scripts/smoke-test.sh`: só na planilha de teste. Apaga tudo, roda a suíte completa e termina com a massa de exemplo. Nunca aponte para a planilha da esposa.
+
+## Ícones
+
+`icons/icon.svg` é a fonte. Os PNGs (`icon-192.png`, `icon-512.png` e `apple-touch-icon.png` em 180×180, sem transparência) são gerados renderizando o SVG nesses tamanhos com qualquer ferramenta (ex.: Chromium/Playwright, Inkscape). O script usado não fica no repo.
 
 ## Segurança
 
