@@ -3,27 +3,7 @@
 import { addMonths, currentStatus } from '../forecast.js';
 import { monthView, monthLabel, monthName, navRange, resolveMonth } from '../month-view.js';
 import { formatMoney, formatInput, parseMoney } from '../money.js';
-
-// Monta um elemento sem innerHTML: textos entram sempre por textContent.
-function h(tag, props = {}, ...children) {
-  const node = document.createElement(tag);
-  for (const [key, value] of Object.entries(props)) {
-    if (value == null || value === false) continue;
-    if (key === 'class') node.className = value;
-    else if (key === 'onclick') node.addEventListener('click', value);
-    else node.setAttribute(key, value === true ? '' : value);
-  }
-  for (const child of children) {
-    if (child == null || child === false) continue;
-    node.append(child);
-  }
-  return node;
-}
-
-// Valor em reais; negativo ganha a classe `neg` (vermelho).
-function money(cents) {
-  return h('span', { class: `money${cents < 0 ? ' neg' : ''}` }, formatMoney(cents));
-}
+import { h, money, queueLine } from './ui.js';
 
 // Linha do resumo: rótulo à esquerda, valor à direita.
 function summaryLine(label, cents, strong = false) {
@@ -157,23 +137,6 @@ export function mount(el, ctx) {
     );
   }
 
-  function queueLine() {
-    const q = store.getQueueState();
-    const line = h('div', { class: 'queue', role: 'status', 'aria-live': 'polite' });
-    if (q.error) {
-      line.classList.add('error');
-      line.append(
-        h('span', {}, 'Não consegui salvar.'),
-        h('button', { type: 'button', class: 'link', onclick: () => store.retry() }, 'Tentar de novo')
-      );
-    } else if (q.sending) {
-      line.append(h('span', {}, 'Salvando…'));
-    } else if (q.pending > 0) {
-      line.append(h('span', {}, 'Sem internet, vou tentar de novo'));
-    }
-    return line;
-  }
-
   function upcomingBlock(view) {
     if (view.kind !== 'current' || !view.upcoming.length) return null;
     return h(
@@ -254,7 +217,7 @@ export function mount(el, ctx) {
 
     const parts = [
       header(view, current),
-      queueLine(),
+      queueLine(store),
       h('section', { class: 'summary' }, ...summary(view)),
       upcomingBlock(view),
       section('Entradas', view.rows.income, month),
