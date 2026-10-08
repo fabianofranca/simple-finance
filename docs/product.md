@@ -97,7 +97,8 @@ Barra inferior com três itens: **Mês · Posso comprar? · Ajustes**.
 ## Dados
 
 - O histórico começa no mês atual. Anos anteriores não são importados.
-- A carga inicial é feita pelo Fabiano, digitando contas e valores dos próximos meses direto no Google Sheets. A tela de contas chega com Ajustes, na Fase 3.
+- **Ambiente de teste:** a planilha do Fabiano (a da Fase 0). A massa de teste é gerada pelo painel, e só funciona se a aba `Config` tiver a linha `ambiente = teste`.
+- **Planilha da esposa:** criada do zero na entrega, sem a linha `ambiente`. A carga real é feita pelo próprio app (telas Mês e Ajustes), sem digitar no Sheets.
 - A planilha continua legível para ela, com abas e cabeçalhos em PT-BR e uma aba `Resumo` opcional, com contas × meses.
 
 ## Fases

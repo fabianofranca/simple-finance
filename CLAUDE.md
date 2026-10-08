@@ -15,6 +15,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 | Alternativa descartada | Drive API + Google Identity Services com JSON no Drive | Exige projeto no Cloud, tela de consentimento e Client ID |
 | Frontend | HTML/CSS/JS puros com ES modules, sem build | Simplicidade |
 | Segurança | Chave secreta validada no Apps Script. A URL e a chave são digitadas pelo usuário no primeiro acesso e ficam no `localStorage`, nunca no repo | O repo é público e a URL do Apps Script funciona como senha |
+| Ambientes | A planilha da Fase 0 é a de teste do Fabiano (massa de teste gerada pelo app, liberada por `ambiente = teste` na aba Config). A planilha da esposa é criada do zero na entrega | Testar pelo celular à vontade sem risco aos dados dela |
 | Testes | `node --test` nativo, sem npm | Sem dependências nem build |
 
 ## Pegadinhas conhecidas
