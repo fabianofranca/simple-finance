@@ -30,6 +30,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `docs/product.md`: especificação de produto, fonte de verdade das decisões.
 - `plans/phase-1.md`: plano da Fase 1.
 - `plans/phase-2.md`: plano da Fase 2.
+- `plans/phase-3.md`: plano da Fase 3.
 - `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `ping`, e `seed`/`reset` só com `ambiente = teste`. Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
 - `index.html`: o app (casca, faixa de aviso, manifest e metas de iOS).
 - `dev.html` + `src/dev.js` + `styles.css`: painel de desenvolvimento (fora do app; mesma config e cache).
@@ -55,7 +56,9 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - [x] Fase 1 executada: dados e regras (abas, API, cache, cálculo com testes); smoke test e teste no celular OK
 - [x] Plano da Fase 2 escrito (plans/phase-2.md)
 - [x] Fase 2 executada: telas Check-in e Mês, app instalável; roteiro validado no celular
-- [ ] Fase 3: Posso comprar?, atualização semanal guiada, Ajustes e lembrete
+- [x] Plano da Fase 3 escrito (plans/phase-3.md)
+- [ ] Fase 3: Posso comprar?, revisão semanal guiada, Ajustes, barra inferior e lembrete
+- [ ] Entrega: planilha da esposa, link de configuração e carga real
 
 ## Como trabalhar neste repo
 - **Fases:** cada fase tem seu próprio plano em Markdown, aprovado pelo Fabiano antes de executar.
