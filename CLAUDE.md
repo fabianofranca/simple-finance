@@ -21,7 +21,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 ## Pegadinhas conhecidas
 - **CORS:** todo POST usa `Content-Type: text/plain;charset=utf-8` e nenhum header customizado. O Apps Script não suporta preflight.
 - **Redirect:** o Apps Script responde com 302. No `curl` use `-L`; o `fetch` segue sozinho.
-- **Mudanças no script:** use *Gerenciar implantações → Editar → Nova versão* para manter a mesma URL. Uma nova implantação gera URL nova.
+- **Mudanças no script:** use *Gerenciar implantações → Editar → Nova versão* para manter a mesma URL. Uma nova implantação gera URL nova. Cole o arquivo inteiro, sem editar: a chave fica nas Propriedades do script.
 - **Erros de CORS ou de rede:** quase sempre o acesso não está como "qualquer pessoa", ou a URL usada é a `/dev` em vez da `/exec`.
 - **Latência:** cada chamada leva de 1 a 2 segundos. Fases futuras devem usar cache local e salvar em segundo plano.
 
@@ -29,13 +29,16 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `PLAN.md`: plano da Fase 0 (concluída).
 - `docs/product.md`: especificação de produto, fonte de verdade das decisões.
 - `plans/phase-1.md`: plano da Fase 1.
-- `apps-script/Code.gs`: backend. GET lê as linhas da aba `Teste`; POST aceita as actions `append` e `ping`. É copiado manualmente para o editor do Apps Script.
-- `index.html` + `styles.css`: página de teste de conexão.
-- `src/config.js`: leitura e gravação da config (URL e chave) no `localStorage`.
-- `src/api.js`: cliente do Apps Script (`getRows`, `appendRow`, `ping`), com timeout e medição de latência.
-- `src/main.js`: liga a UI às funções.
-- `scripts/smoke-test.sh`: teste via `curl`, lendo URL e chave do `.env`.
-- `README.md`: passo a passo de setup.
+- `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `ping`, e `seed`/`reset` só com `ambiente = teste`. Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
+- `index.html` + `styles.css`: painel de desenvolvimento da Fase 1 (as telas de verdade chegam na Fase 2).
+- `src/config.js`: URL e chave no `localStorage`.
+- `src/api.js`: cliente do Apps Script (`loadAll`, `save*`, `seed`, `reset`, `ping`), com timeout e medição de latência.
+- `src/store.js`: cache local e fila de gravação em segundo plano.
+- `src/forecast.js`: cálculo do fluxo de caixa (módulo puro).
+- `src/main.js`: liga o painel.
+- `tests/`: testes com `node --test`.
+- `scripts/smoke-test.sh`: teste via `curl`; modo padrão (não destrutivo) e `SMOKE_FULL=1` (só na planilha de teste).
+- `README.md`: setup, painel, abas e desenvolvimento.
 
 ## Status
 - [x] Arquitetura definida
