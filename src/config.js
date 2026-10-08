@@ -24,3 +24,17 @@ export function clearConfig() {
     // sem acesso ao localStorage: nada a apagar
   }
 }
+
+// Endereço resumido para a tela Ajustes: "script.google.com · …abc123"
+// (6 últimos caracteres do id do script). Outro formato: só o host; inválido: ''.
+export function shortUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(String(url ?? '').trim());
+  } catch {
+    return '';
+  }
+  const id = /\/s\/([^/]+)\/exec\/?$/.exec(parsed.pathname)?.[1];
+  if (parsed.host === 'script.google.com' && id) return `script.google.com · …${id.slice(-6)}`;
+  return parsed.host;
+}
