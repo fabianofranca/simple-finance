@@ -109,7 +109,10 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
     - mês passado: Entrou e Saiu, sem sobra.
   - Bloco "Próximos meses" (só no mês atual) com a sobra acumulada dos próximos H meses, com negativos em vermelho. Tocar num mês abre esse mês.
   - Lista do mês em duas partes, "Entradas" e "Contas", na ordem das contas, com nome e valor. Valor padrão aparece em cinza com a palavra "estimado"; sem valor, aparece "—". Conta arquivada só aparece se tiver lançamento no mês. Não há caixas de marcar por conta.
-  - No mês atual, o título de cada parte tem um switch: "Entradas · Recebi" e "Contas · Paguei". Eles mostram a resposta do último check-in do mês (desligados sem check-in no mês). Mudar um switch sempre pede o saldo junto: com check-in no mês, um diálogo curto ("Contas de outubro pagas — Quanto ficou na conta?", já preenchido com o último saldo) grava um check-in com a marcação nova; sem check-in no mês, abre o "Atualizar saldo" com a resposta já marcada. Desligar é o jeito de desfazer um toque errado.
+  - No mês atual, o título de cada parte tem um switch: "Entradas · Recebi" e "Contas · Paguei". Eles mostram a resposta do último check-in do mês (desligados sem check-in no mês).
+  - Com check-in no mês, o switch é **um toque só e nunca muda a sobra**: só passa o dinheiro de "Falta receber/pagar" para "Na conta". Ligar "Recebi" transforma as entradas estimadas do mês em lançamentos (some o "estimado") e soma o total das entradas ao último saldo; ligar "Paguei" faz o mesmo com as contas e desconta o total. Desligar faz o inverso no saldo (os lançamentos ficam). Uma confirmação curta mostra quanto entrou ou saiu da conta. Se o valor real vier diferente, o "Atualizar saldo" corrige.
+  - Sem check-in no mês, o switch abre o "Atualizar saldo" com a resposta já marcada, porque o primeiro saldo do mês precisa ser o real.
+  - Desligar é o jeito de desfazer um toque errado.
   - Um toque no valor abre a edição. Se a conta tem valor padrão, há também "Usar o valor padrão", que apaga o lançamento do mês.
   - Rodapé: o botão "Atualizar saldo de outubro" (com o nome do mês corrente) aparece em todos os meses e sempre atualiza o saldo do mês corrente, mesmo quando um mês passado ou futuro está na tela. Ao lado, "Revisar valores" abre a revisão semanal.
   - No topo, a faixa do lembrete, quando for a hora.

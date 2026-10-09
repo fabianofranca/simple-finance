@@ -34,7 +34,7 @@ Esta fase resolve os dois antes da Entrega, para que a primeira experiência del
   - Mostram a resposta do último check-in do mês. Sem check-in no mês, ficam desligados.
   - Cada um é um `<button role="switch" aria-checked>` com o texto ao lado, para não depender só da cor, e área de toque ≥ 44px.
   - Meses passados e futuros não têm switch.
-- **O switch não muda sem o saldo.** "Paguei" só faz sentido junto com o saldo depois de pagar. Exemplo: ela tem 3.000 na conta e 2.000 de contas, com o salário já recebido, e a sobra é 1.000. Se ela pagar e só ligar o switch, o app mostraria sobra de 3.000. Com o salário acontece o contrário: ele seria contado duas vezes. Por isso:
+- **O switch não muda sem o saldo.** *(Substituído pelo "Ajuste depois da validação no celular", mais abaixo: o switch agora ajusta o saldo sozinho, sem diálogo. O caso sem check-in no mês continua valendo.)* "Paguei" só faz sentido junto com o saldo depois de pagar. Exemplo: ela tem 3.000 na conta e 2.000 de contas, com o salário já recebido, e a sobra é 1.000. Se ela pagar e só ligar o switch, o app mostraria sobra de 3.000. Com o salário acontece o contrário: ele seria contado duas vezes. Por isso:
   - **Com check-in no mês:** o toque abre um diálogo com o título da mudança e o campo de saldo, já preenchido com o último. O campo é igual ao do check-in e aceita negativo com "±".
     - "Confirmar" grava um check-in com a marcação nova e mantém a outra.
     - "Cancelar" não grava, e o switch fica como estava.
@@ -45,7 +45,7 @@ Esta fase resolve os dois antes da Entrega, para que a primeira experiência del
   - volta marcada "Ainda não" se ela desligar o switch.
 - **O switch conta como check-in.** Com "1x por dia", o check-in automático não abre de novo no mesmo dia.
 
-**Textos do diálogo** (com o nome do mês corrente):
+**Textos do diálogo** (com o nome do mês corrente; o diálogo sai no ajuste T4–T5):
 
 | Mudança | Título | Campo |
 |---|---|---|
@@ -118,22 +118,90 @@ Cada tarefa vira um PR. As três rodam em sequência: T2 depende da lógica da T
 
 **Comum a T2:** o agente monta o backend local que carrega o `Code.gs` real com mocks, como nas Fases 2 e 3, **no scratchpad e nunca no repo**.
 
+## Ajuste depois da validação no celular (T4–T6)
+
+Na validação, o Fabiano pediu que ligar "Recebi" já tire o "estimado" das entradas e some o valor em "Na conta", sem perguntar nada. O mesmo vale para "Paguei".
+
+**Decisão: o switch é um toque só e nunca muda a sobra.** Ele só passa o dinheiro de "Falta receber" ou "Falta pagar" para "Na conta". Assim não há como inflar a sobra, que era o motivo do diálogo. Se o valor real vier diferente do estimado, o "Atualizar saldo" do dia corrige o "Na conta".
+
+| Toque | Lançamentos do mês | Na conta | Marcação |
+|---|---|---|---|
+| Liga "Recebi" | as entradas estimadas viram lançamentos (some o "estimado") | último saldo **+** R(A) | `incomeReceived = true` |
+| Desliga "Recebi" | nada muda (os lançamentos ficam) | último saldo **−** R(A) | `incomeReceived = false` |
+| Liga "Paguei" | as contas estimadas viram lançamentos | último saldo **−** D(A) | `billsPaid = true` |
+| Desliga "Paguei" | nada muda | último saldo **+** D(A) | `billsPaid = false` |
+
+Exemplo: Na conta 500, Salário 3.000 estimado e 2.150 de contas, com Unha 150 estimado. A sobra é 1.350.
+- Ligar "Recebi" grava o Salário de 3.000 como lançamento. Fica Na conta 3.500, Falta receber 0 e sobra 1.350.
+- Ligar "Paguei" grava a Unha de 150 como lançamento. Fica Na conta 1.350, Falta pagar 0 e sobra 1.350.
+- Desligar "Paguei" volta para Na conta 3.500, Falta pagar 2.150 e sobra 1.350.
+
+**Regras:**
+- **Sem check-in no mês:** o toque continua abrindo o "Atualizar saldo" com a resposta marcada. O primeiro saldo do mês precisa ser o real, senão o app somaria em cima de um saldo velho.
+- **Lançamentos:** só viram lançamento as contas daquele tipo com valor estimado no mês, isto é, ativas, com padrão e sem lançamento. Conta sem valor continua sem valor.
+- **Gravação:** primeiro o `saveEntries` (se houver lançamentos), depois o `saveCheckin`. O check-in segue o formato de sempre (`at`, `month`, `balance`, as duas marcações e `projectedBalance`), com a outra marcação copiada do último check-in do mês.
+- **Sem diálogo e sem aviso de "sobra caiu"**, porque a sobra não muda. Depois do toque aparece uma confirmação curta pelo `ctx.notify`, que some com um toque. Se o total for 0, não aparece nada.
+
+| Toque | Confirmação |
+|---|---|
+| Liga "Recebi" | Salário de outubro somado: + R$ 3.000,00 na conta. |
+| Desliga "Recebi" | Salário de outubro tirado: − R$ 3.000,00 na conta. |
+| Liga "Paguei" | Contas de outubro descontadas: − R$ 2.150,00 na conta. |
+| Desliga "Paguei" | Contas de outubro devolvidas: + R$ 2.150,00 na conta. |
+
+**Lógica (`src/checkin.js`):**
+- **`buildToggle(data, now, { field, value })`** devolve `{ entries, checkin }`:
+  - `entries` vem como `[{ accountId, month, amount }]` (vazio ao desligar);
+  - `checkin.balance` é o saldo do último check-in do mês ± o total do tipo, calculado com os lançamentos novos;
+  - `projectedBalance` é calculado como no `buildCheckin` e fica igual à sobra de antes.
+  - Sem check-in no mês, lança `Error`, porque a tela não deve chamar nesse caso. O parâmetro `balance` sai.
+- **`toggleNotice(field, value, total, month)`** substitui o `toggleText` e devolve o texto da confirmação, ou `null` com total 0.
+
+### T4. Lógica + testes (`src/checkin.js`, `tests/checkin.test.js`)
+- Implementar `buildToggle` e `toggleNotice` conforme as regras e remover o `toggleText`.
+- Casos mínimos:
+  - o exemplo acima, nos quatro toques;
+  - em todos os toques, `projectedBalance` igual ao `currentStatus(...).endOfMonth` de antes;
+  - a outra marcação copiada;
+  - conta arquivada com lançamento entra no total e não vira lançamento de novo;
+  - conta sem valor fica de fora;
+  - desligar não gera lançamentos;
+  - sem check-in no mês, lança erro;
+  - os quatro textos e o `null` com total 0.
+- **Aceite:** `node --test` passa.
+
+### T5. Tela Mês (`src/screens/month.js`, `styles/month.css`)
+- Tirar o diálogo do switch, com o CSS que ficar sem uso.
+- Com check-in no mês, o toque chama `buildToggle`, grava os lançamentos e depois o check-in, e mostra o `toggleNotice`. O foco continua no switch.
+- Sem check-in no mês, o toque continua abrindo `#checkin/paguei` ou `#checkin/recebi`.
+- **Roteiro** (Playwright no backend local, 360×800, claro e escuro, sem erros no console):
+  - o exemplo acima, partindo do `seed` com um check-in pelo app;
+  - o "estimado" some do Salário ao ligar "Recebi" e da Unha ao ligar "Paguei", e o GET mostra os lançamentos;
+  - a sobra fica igual em todos os toques, e o cartão fecha em todos;
+  - desligar volta o "Na conta" e não apaga lançamentos;
+  - as confirmações aparecem com os textos da tabela;
+  - sem check-in no mês, continua abrindo o "Atualizar saldo".
+- Screenshots no PR.
+
+### T6. README
+- Atualizar a descrição dos switches e o "Roteiro de conferência da Fase 4". Pode rodar em paralelo com a T5.
+
 ## Pausas obrigatórias (ações manuais do Fabiano)
 1. **Nenhuma implantação de backend** nesta fase.
 2. **No fim, no celular, com a planilha de teste:**
    - ver o cartão fechar (na conta + falta receber − falta pagar = sobra);
-   - ligar "Recebi" e "Paguei", informando o saldo;
-   - desligar um deles e ver a pergunta voltar no "Atualizar saldo";
-   - cancelar um diálogo e ver que nada mudou.
+   - ligar "Recebi": o "estimado" some das entradas, o "Na conta" sobe e a sobra fica igual;
+   - ligar "Paguei": o "estimado" some das contas, o "Na conta" desce e a sobra fica igual;
+   - desligar um deles: o "Na conta" volta e a pergunta reaparece no "Atualizar saldo".
 
 ## Fora do escopo desta fase
 - Marcar pago ou recebido conta a conta.
 - Pagamento parcial. Continua o erro conservador aceito: com "Ainda não", todas as contas do mês contam como pendentes.
-- Mudar a etiqueta "estimado".
+- Mudar a etiqueta "estimado" em si. Ela só some quando o switch transforma o valor estimado em lançamento.
 - Planilha da esposa, link de configuração e carga real (passo da Entrega).
 - Qualquer framework, build ou dependência.
 
 ## Critério de pronto
-- `node --test` passa com os casos da T1.
-- O roteiro da T2 roda sem erros no console, com screenshots no PR.
+- `node --test` passa com os casos da T1 e da T4.
+- Os roteiros da T2 e da T5 rodam sem erros no console, com screenshots nos PRs.
 - No celular, a pausa 2 completa sem surpresas.
