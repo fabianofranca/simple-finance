@@ -1,6 +1,6 @@
 # Simple Finance
 
-App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-3.md`](plans/phase-3.md).
+App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-4.md`](plans/phase-4.md).
 
 - **`index.html` é o app** (Mês, Check-in, Posso comprar?, Revisar valores e Ajustes).
 - **`dev.html` é o painel de desenvolvimento**: mesmo site, mesma configuração e mesmo cache. Abra em `…/simple-finance/dev.html`.
@@ -35,12 +35,17 @@ Cole o `Code.gs` inteiro de novo e use *Implantar → Gerenciar implantações �
 
 O app abre pelo ícone "Contas", sem a barra do navegador.
 
-## Como o app funciona (Fases 2 e 3)
+## Como o app funciona (Fases 2 a 4)
 
 - Na primeira abertura, pede o endereço (URL `/exec`) e a chave.
 - **Barra inferior:** Mês · Posso comprar? · Ajustes (rotas `#mes`, `#comprar`, `#ajustes`). Check-in e revisão abrem sem a barra.
 - O check-in abre sozinho 1 vez por dia (ajustável em Ajustes). "Agora não" adia até amanhã (com "Toda vez", só pula aquela abertura); "Atualizar saldo de outubro" (na tela Mês) abre à mão.
 - A tela Mês tem ‹ › para trocar de mês e "Próximos meses" no mês atual. Tocar no valor edita; "Usar o valor padrão" aparece quando a conta tem padrão.
+- **Cartão do mês atual:** Na conta, **Falta receber**, Falta pagar e Sobra no fim do mês. A conta fecha: na conta + falta receber − falta pagar = sobra.
+- **Switches "Recebi" (Entradas) e "Paguei" (Contas):** só no mês atual, e sempre pedem o saldo junto.
+  - Com check-in no mês, abre um diálogo (ex.: "Contas de outubro pagas") com o último saldo preenchido; "Confirmar" grava e "Cancelar" não muda nada.
+  - Sem check-in no mês, abre o "Atualizar saldo" (`#checkin/recebi` ou `#checkin/paguei`) com a resposta já marcada.
+  - Desligar um switch desfaz a marcação, e a pergunta volta no "Atualizar saldo".
 - **Posso comprar?:** informe a parcela e a quantidade (1x a 24x) e toque em "Ver". O app responde se pode ou não, com a sobra mês a mês antes e depois da compra.
 - **Revisão semanal** (`#revisao`, botão "Revisar valores" na tela Mês): uma pergunta por vez, só sobre o mês que vem. Cada resposta é gravada na hora; a data da última revisão (`lastReviewAt`) só é gravada ao terminar. No fim mostra a sobra antes e depois.
 - **Lembrete:** a tela Mês mostra uma faixa com "Revisar agora" quando faz 7 dias ou mais sem revisar, ou quando nunca houve revisão.
@@ -96,6 +101,15 @@ No celular, com a planilha de teste (não precisa implantar o backend de novo):
 ### Como forçar o lembrete
 
 Na aba `Config` da planilha de teste, apague o valor da chave `ultima_revisao` (sem revisão nenhuma o lembrete aparece) ou digite uma data antiga em ISO, por exemplo `2026-09-20T12:00:00Z`. Reabra o app.
+
+## Roteiro de conferência da Fase 4
+
+No celular, com a planilha de teste (sem implantar o backend de novo):
+
+1. Abra a tela Mês e confira o cartão: na conta + falta receber − falta pagar = sobra.
+2. Ligue "Recebi" e informe o saldo. Depois ligue "Paguei" e informe o saldo. O cartão continua fechando.
+3. Desligue um dos dois: o switch apaga a marcação. Toque em "Atualizar saldo" e veja a pergunta voltar.
+4. Abra um diálogo (ligando ou desligando um switch), toque em "Cancelar" e confira que nada mudou.
 
 ## Abas e colunas
 
