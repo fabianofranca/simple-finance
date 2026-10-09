@@ -27,4 +27,9 @@ button:disabled { opacity:.5; cursor:default; }
 #summary .line { display:flex; justify-content:space-between; gap:8px; padding:2px 0; }
 #summary .line + h3 { margin-top:12px; }
 #summary .neg { color:var(--err); font-weight:600; }
+textarea { width:100%; min-height:44px; padding:10px; border:1px solid var(--line); border-radius:8px; background:transparent; color:inherit; font:.85rem/1.4 ui-monospace, monospace; word-break:break-all; resize:vertical; }
+textarea:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+#cl .warn { color:var(--err); font-weight:600; margin:0 0 8px; }
+#cl-error { margin-top:12px; }
+#cl-copied { align-self:center; color:var(--accent); font-weight:600; }
 [hidden] { display:none !important; }

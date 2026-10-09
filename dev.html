@@ -43,6 +43,28 @@
     <button id="reset" class="ghost danger">Apagar tudo</button>
   </div>
 
+  <fieldset id="cl">
+    <legend>Link de configuração</legend>
+    <p class="warn">Quem tiver este link acessa a planilha. Mande só para ela.</p>
+    <label for="cl-url">Endereço (URL /exec)</label>
+    <input id="cl-url" type="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec">
+    <label for="cl-key">Chave</label>
+    <input id="cl-key" type="text" autocomplete="off" spellcheck="false">
+    <div class="row">
+      <button id="cl-genkey" class="ghost">Gerar chave</button>
+      <button id="cl-genlink">Gerar link</button>
+    </div>
+    <div id="cl-error" class="err" role="alert" hidden></div>
+    <div id="cl-result" hidden>
+      <label for="cl-link">Link</label>
+      <textarea id="cl-link" readonly rows="4"></textarea>
+      <div class="row">
+        <button id="cl-copy">Copiar</button>
+        <span id="cl-copied" aria-live="polite" hidden>Copiado!</span>
+      </div>
+    </div>
+  </fieldset>
+
   <h2>Resultado</h2>
   <div id="summary" hidden></div>
   <pre id="out">Nenhuma chamada feita ainda.</pre>

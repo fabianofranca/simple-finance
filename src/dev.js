@@ -1,4 +1,4 @@
-import { loadConfig, saveConfig, clearConfig } from './config.js';
+import { loadConfig, saveConfig, clearConfig, buildConfigLink, parseConfigLink, generateKey } from './config.js';
 import { ping, seed, reset } from './api.js';
 import { store } from './store.js';
 import { currentStatus, project } from './forecast.js';
@@ -189,3 +189,42 @@ if (cfg.url && cfg.key) {
   if (cached) show(cached);
   store.refresh().then(d => { if (!cached) show(d); }).catch(showError);
 }
+
+// Link de configuração: não usa nem grava a configuração do aparelho.
+let copiedTimer;
+
+$('cl-genkey').addEventListener('click', () => {
+  $('cl-key').value = generateKey((n) => crypto.getRandomValues(new Uint8Array(n)));
+});
+
+$('cl-genlink').addEventListener('click', () => {
+  const url = $('cl-url').value.trim();
+  const key = $('cl-key').value.trim();
+  const link = buildConfigLink(new URL('./', location.href).href, { url, key });
+  $('cl-copied').hidden = true;
+  if (!parseConfigLink(link)) {
+    $('cl-result').hidden = true;
+    $('cl-error').textContent = 'Confira o endereço: precisa ser o /exec do Apps Script, e a chave não pode ficar vazia.';
+    $('cl-error').hidden = false;
+    return;
+  }
+  $('cl-error').hidden = true;
+  $('cl-link').value = link;
+  $('cl-result').hidden = false;
+});
+
+$('cl-copy').addEventListener('click', async () => {
+  const field = $('cl-link');
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(field.value);
+    ok = true;
+  } catch {
+    field.select();
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+  }
+  if (!ok) return;
+  $('cl-copied').hidden = false;
+  clearTimeout(copiedTimer);
+  copiedTimer = setTimeout(() => { $('cl-copied').hidden = true; }, 2000);
+});
