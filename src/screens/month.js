@@ -283,29 +283,27 @@ export function mount(el, ctx) {
     const view = monthView(data, today, month);
 
     const isCurrent = view.kind === 'current';
-    // Primeiro uso: sem conta ativa, o convite substitui as listas (e os switches).
+    // Primeiro uso: sem conta ativa, a tela mostra só o cabeçalho, a linha de estado e o convite.
     const firstUse = activeAccounts(data.accounts).length === 0;
-    const parts = [
-      header(view, current),
-      queueLine(store),
-      reminderBanner(data, today),
-      h('section', { class: 'summary' }, ...summary(view)),
-      upcomingBlock(view),
-      ...(firstUse
-        ? [invite()]
-        : [
-            section('Entradas', view.rows.income, month,
-              isCurrent && switchButton('incomeReceived', 'Recebi', view.flags.incomeReceived)),
-            section('Contas', view.rows.expense, month,
-              isCurrent && switchButton('billsPaid', 'Paguei', view.flags.billsPaid))
-          ]),
-      h(
-        'div',
-        { class: 'foot' },
-        h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#checkin') }, `Atualizar saldo de ${monthName(current)}`),
-        h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#revisao') }, 'Revisar valores')
-      )
-    ];
+    const parts = firstUse
+      ? [header(view, current), queueLine(store), invite()]
+      : [
+          header(view, current),
+          queueLine(store),
+          reminderBanner(data, today),
+          h('section', { class: 'summary' }, ...summary(view)),
+          upcomingBlock(view),
+          section('Entradas', view.rows.income, month,
+            isCurrent && switchButton('incomeReceived', 'Recebi', view.flags.incomeReceived)),
+          section('Contas', view.rows.expense, month,
+            isCurrent && switchButton('billsPaid', 'Paguei', view.flags.billsPaid)),
+          h(
+            'div',
+            { class: 'foot' },
+            h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#checkin') }, `Atualizar saldo de ${monthName(current)}`),
+            h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#revisao') }, 'Revisar valores')
+          )
+        ];
     // O redesenho troca os botões; se o foco estava num switch, devolve o foco ao novo.
     const focused = content.contains(document.activeElement) ? document.activeElement.dataset.switch : null;
     content.replaceChildren(...parts.filter(Boolean)); // replaceChildren(null) escreveria "null"
