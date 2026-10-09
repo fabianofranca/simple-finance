@@ -1,6 +1,6 @@
 # Especificação de produto — App de Contas
 
-Fonte de verdade das decisões de produto para as Fases 1 a 4. Mudou alguma regra? Atualize este arquivo antes do código.
+Fonte de verdade das decisões de produto para as Fases 1 a 4 e a Entrega. Mudou alguma regra? Atualize este arquivo antes do código.
 
 ## Problema
 
@@ -133,7 +133,9 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
 
 - O histórico começa no mês atual. Anos anteriores não são importados.
 - **Ambiente de teste:** a planilha do Fabiano (a da Fase 0). A massa de teste é gerada pelo painel, e só funciona se a aba `Config` tiver a linha `ambiente = teste`.
-- **Planilha da esposa:** criada do zero na entrega, sem a linha `ambiente`. No mesmo passo, o Fabiano manda para ela um link de configuração (URL e chave num link), para ela não digitar nada. A carga real é feita pelo próprio app (telas Mês e Ajustes), sem digitar no Sheets.
+- **Planilha da esposa:** criada do zero na entrega, na conta do Fabiano e compartilhada com ela como Leitora, sem a linha `ambiente`. No mesmo passo, o Fabiano manda para ela um link de configuração (URL e chave num link), para ela não digitar nada. A carga real é feita pelo próprio app (telas Mês e Ajustes), sem digitar no Sheets.
+- **Link de configuração:** `…/simple-finance/#conectar?u=<URL>&k=<chave>`, gerado no painel. Abrir o link configura o aparelho e tira o link da barra de endereço. Se o aparelho já estiver ligado a outra planilha, o app pede confirmação antes de trocar e apaga os dados guardados. Na tela de configuração, ela também pode colar o link (necessário no iPhone, onde o app instalado não enxerga o que foi configurado no Safari).
+- **Primeiro uso:** sem nenhuma conta ativa, o check-in não abre sozinho; a tela Mês convida a cadastrar o salário e as contas ("Cadastrar contas" → Ajustes). Com a primeira conta cadastrada, voltar ao Mês abre o primeiro check-in.
 - A planilha continua legível para ela, com abas e cabeçalhos em PT-BR e uma aba `Resumo` opcional, com contas × meses.
 
 ## Fases
@@ -144,7 +146,7 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
 | 2 — substitui a planilha | Telas Check-in e Mês (com Próximos meses), app instalável. Plano: `plans/phase-2.md` |
 | 3 | Posso comprar?, revisão semanal guiada, Ajustes, barra inferior e lembrete. Plano: `plans/phase-3.md` |
 | 4 — usabilidade | "Falta receber" no cartão do mês e switches "Recebi"/"Paguei" na tela Mês. Plano: `plans/phase-4.md` |
-| Entrega | Planilha da esposa, link de configuração e carga real |
+| Entrega | Planilha da esposa, link de configuração, primeiro uso e carga real. Plano: `plans/delivery.md` |
 
 ## Fora do escopo
 
