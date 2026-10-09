@@ -3,6 +3,7 @@
 // para comparar dias, usa a data local do aparelho.
 
 import { monthOf, currentStatus, monthFlags, effectiveAmount, monthTotals } from './forecast.js';
+import { activeAccounts } from './accounts.js';
 import { formatMoney } from './money.js';
 import { monthName } from './month-view.js';
 
@@ -34,10 +35,12 @@ function ofMonth(data, month) {
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 }
 
-// Abre sozinho? Sem check-in, sempre (e o "Agora não" não vale).
+// Abre sozinho? Sem nenhuma conta ativa (nada cadastrado ou só arquivadas), nunca:
+// não há o que perguntar. Sem check-in, sempre (e o "Agora não" não vale).
 // Com "toda vez" (always) o "Agora não" também é ignorado: só pula aquela abertura.
 // Com daily e weekly, adiado hoje não abre até o dia seguinte.
 export function shouldOpenCheckin(data, now, snoozeDay = null) {
+  if (!activeAccounts(data.accounts).length) return false;
   const last = lastOf(data.checkins);
   if (!last) return true;
   const frequency = data.settings?.checkinFrequency || 'daily';
