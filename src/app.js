@@ -1,7 +1,7 @@
 // Casca do app: roteador por hash, faixa de aviso e atualização dos dados.
 // Contrato das telas: mount(el, ctx) devolve unmount().
 // ctx = { store, now, navigate, back, notify, params }
-import { loadConfig } from './config.js';
+import { loadConfig, saveConfig, clearConfig, parseConfigLink, sameConfig } from './config.js';
 import { store } from './store.js';
 import * as setup from './screens/setup.js';
 import * as month from './screens/month.js';
@@ -10,6 +10,7 @@ import * as buy from './screens/buy.js';
 import * as review from './screens/review.js';
 import * as settings from './screens/settings.js';
 import { shouldOpenCheckin } from './checkin.js';
+import { confirmDialog } from './screens/ui.js';
 
 const root = document.getElementById('app');
 const noticeBox = document.getElementById('notice');
@@ -98,12 +99,16 @@ tabbar.addEventListener('click', (ev) => {
   if (btn) navigate(`#${btn.dataset.tab}`, { replace: true }); // "Mês" vale #mes: volta ao mês atual
 });
 
+// Mensagem para a tela de configuração (link incompleto); vale para uma única tela.
+let setupMessage = null;
+
 function render() {
   if (unmountCurrent) unmountCurrent();
   unmountCurrent = null;
   const ctx = { store, now: () => new Date(), navigate, back, notify, params: {} };
   let screen = setup;
   let tab = null; // sem URL/chave, qualquer rota mostra a configuração
+  if (setupMessage) ctx.params = { linkError: setupMessage };
   if (!hasConfig()) {
     // depois de salvar a configuração (com os dados já carregados), vê se é hora do check-in
     ctx.navigate = (route, opts) => {
@@ -117,6 +122,7 @@ function render() {
     tab = route.tab;
     ctx.params = route.params;
   }
+  setupMessage = null;
   updateTabbar(tab);
   root.replaceChildren();
   unmountCurrent = screen.mount(root, ctx) || null;
@@ -155,7 +161,61 @@ async function refresh() {
   maybeOpenCheckin();
 }
 
-window.addEventListener('hashchange', render);
+// Link de configuração (#conectar?u=…&k=…): tratado antes do roteador. O link, que leva a chave,
+// sai da barra de endereço e do histórico em todos os casos (replaceState, nunca pushState).
+const isConnectLink = () => location.hash.startsWith('#conectar');
+
+function stripLink(hash) {
+  history.replaceState(null, '', location.pathname + location.search + hash);
+}
+
+async function openConnectLink() {
+  const incoming = parseConfigLink(location.href);
+  if (!incoming) {
+    if (hasConfig()) {
+      stripLink('#mes');
+      notify('Esse link de configuração não está completo. Peça um novo ao Fabiano.');
+      startApp();
+    } else {
+      stripLink('');
+      setupMessage = 'Esse link de configuração não está completo. Peça um novo ao Fabiano.';
+      render();
+    }
+    return;
+  }
+  stripLink('#mes');
+  if (!hasConfig()) {
+    saveConfig(incoming);
+    startApp();
+  } else if (sameConfig(loadConfig(), incoming)) {
+    startApp();
+  } else {
+    startApp(); // fundo do diálogo: a planilha atual
+    const ok = await confirmDialog(
+      'Esse link troca a planilha deste aparelho. Os dados guardados aqui serão apagados.',
+      'Trocar'
+    );
+    if (!ok) return;
+    // Mesmo que "Trocar planilha" (Ajustes); o store descarta buscas em andamento ao limpar.
+    if (unmountCurrent) unmountCurrent();
+    unmountCurrent = null;
+    clearConfig();
+    store.clear();
+    try {
+      localStorage.removeItem('sf.snooze');
+    } catch {
+      // sem acesso ao storage: nada a apagar
+    }
+    saveConfig(incoming);
+    openedThisVisit = false;
+    startApp();
+  }
+}
+
+window.addEventListener('hashchange', () => {
+  if (isConnectLink()) openConnectLink();
+  else render();
+});
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
     openedThisVisit = false;
@@ -163,10 +223,15 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+function startApp() {
+  render();
+  if (hasConfig()) {
+    if (store.getData()) maybeOpenCheckin();
+    refresh();
+  }
+}
+
 // Recarregar não conta como "veio de outra tela": zera a profundidade da entrada atual.
 if (depth() > 0) history.replaceState(null, '', location.href);
-render();
-if (hasConfig()) {
-  if (store.getData()) maybeOpenCheckin();
-  refresh();
-}
+if (isConnectLink()) openConnectLink();
+else startApp();
