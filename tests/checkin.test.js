@@ -390,10 +390,10 @@ test('monthFlags usa o último check-in do mês por `at`, não o último da list
 test('toggleNotice: os quatro textos e null com total 0', () => {
   const m3 = formatMoney(reais(3000));
   const m2 = formatMoney(reais(2150));
-  assert.equal(toggleNotice('incomeReceived', true, reais(3000), '2026-10'), `Salário de outubro somado: + ${m3} na conta.`);
-  assert.equal(toggleNotice('incomeReceived', false, reais(3000), '2026-10'), `Salário de outubro tirado: − ${m3} na conta.`);
-  assert.equal(toggleNotice('billsPaid', true, reais(2150), '2026-10'), `Contas de outubro descontadas: − ${m2} na conta.`);
-  assert.equal(toggleNotice('billsPaid', false, reais(2150), '2026-10'), `Contas de outubro devolvidas: + ${m2} na conta.`);
+  assert.equal(toggleNotice('incomeReceived', true, reais(3000), '2026-10'), `Salário de outubro somado: +\u00a0${m3} na conta.`);
+  assert.equal(toggleNotice('incomeReceived', false, reais(3000), '2026-10'), `Salário de outubro tirado: −\u00a0${m3} na conta.`);
+  assert.equal(toggleNotice('billsPaid', true, reais(2150), '2026-10'), `Contas de outubro descontadas: −\u00a0${m2} na conta.`);
+  assert.equal(toggleNotice('billsPaid', false, reais(2150), '2026-10'), `Contas de outubro devolvidas: +\u00a0${m2} na conta.`);
   assert.match(m3, /^R\$\s3\.000,00$/);
   assert.equal(toggleNotice('billsPaid', true, 0, '2026-10'), null);
   assert.equal(toggleNotice('incomeReceived', false, 0, '2026-10'), null);
