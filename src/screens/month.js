@@ -3,7 +3,7 @@
 import { addMonths, currentStatus, monthFlags } from '../forecast.js';
 import { monthView, monthLabel, monthName, navRange, resolveMonth } from '../month-view.js';
 import { formatMoney, formatInput, parseMoney } from '../money.js';
-import { buildToggle, checkinForm, dropNotice, toggleText } from '../checkin.js';
+import { buildToggle, toggleNotice } from '../checkin.js';
 import { reminder } from '../review.js';
 import { h, money, queueLine } from './ui.js';
 
@@ -36,8 +36,7 @@ export function mount(el, ctx) {
   let alive = true;
   const content = h('div', { class: 'month' });
   const dialog = h('dialog', { class: 'edit-dialog' });
-  const toggleDialog = h('dialog', { class: 'edit-dialog' }); // diálogo dos switches Recebi/Paguei
-  el.replaceChildren(content, dialog, toggleDialog);
+  el.replaceChildren(content, dialog);
 
   // ----- edição -----
   let editing = null; // { row, month }
@@ -47,93 +46,30 @@ export function mount(el, ctx) {
   }
 
   // ----- switches "Recebi" / "Paguei" (só no mês atual) -----
-  let toggling = null; // campo do switch cujo diálogo está aberto
+  // Um toque só: passa o dinheiro de "Falta receber/pagar" para "Na conta" (ou devolve), sem mexer na sobra.
+  const lastTap = {}; // campo -> instante (ms) do último toque tratado
+  const TAP_GUARD_MS = 400; // segura o toque duplo: o redesenho já troca o switch, o 2º toque desfaria o 1º
 
-  function closeToggle() {
-    if (toggleDialog.open) toggleDialog.close();
-  }
-
-  // O switch nunca muda sozinho: pede o saldo (com check-in no mês) ou leva ao "Atualizar saldo".
-  function onSwitch(field, value, month) {
+  function onSwitch(field, value) {
     const data = store.getData();
     const now = ctx.now();
     if (!data) return;
     if (!monthFlags(data, now).hasCheckin) {
+      // o primeiro saldo do mês precisa ser o real: leva ao "Atualizar saldo"
       ctx.navigate(field === 'billsPaid' ? '#checkin/paguei' : '#checkin/recebi');
       return;
     }
-    toggling = field;
-    const text = toggleText(field, value, month);
-    const input = h('input', {
-      id: 'toggle-balance',
-      type: 'text',
-      inputmode: 'decimal',
-      autocomplete: 'off',
-      enterkeyhint: 'done'
-    });
-    const last = checkinForm(data, now).balance;
-    if (last !== null) input.value = formatInput(last);
-    const sign = h('button', { type: 'button', class: 'sign', 'aria-label': 'Trocar o sinal' }, '±');
-    sign.addEventListener('click', () => {
-      const t = input.value.trim();
-      input.value = /^[-−]/.test(t) ? t.replace(/^[-−]\s*/, '') : `-${t}`;
-      input.focus();
-    });
-    const error = h('p', { class: 'edit-error', role: 'alert', hidden: true });
-    const form = h(
-      'form',
-      { class: 'edit-form' },
-      h('h2', { class: 'edit-title' }, text.title),
-      h('label', { for: 'toggle-balance' }, text.label),
-      h('div', { class: 'toggle-balance' }, h('span', { class: 'currency', 'aria-hidden': 'true' }, 'R$'), input, sign),
-      error,
-      h(
-        'div',
-        { class: 'edit-actions' },
-        h('button', { type: 'button', class: 'ghost', onclick: closeToggle }, 'Cancelar'),
-        h('button', { type: 'submit' }, 'Confirmar')
-      )
-    );
-    form.addEventListener('submit', (ev) => {
-      ev.preventDefault();
-      const balance = parseMoney(input.value, { allowNegative: true });
-      if (balance === null) {
-        error.textContent = 'Não entendi esse valor. Use um formato como 150,00.';
-        error.hidden = false;
-        input.setAttribute('aria-invalid', 'true');
-        input.focus();
-        return;
-      }
-      const previous = store.getData();
-      const checkin = buildToggle(previous, ctx.now(), { field, value, balance });
-      const notice = dropNotice(previous, checkin); // antes de gravar, com os dados anteriores
-      store.saveCheckin(checkin);
-      if (notice) ctx.notify(notice.text);
-      closeToggle();
-    });
-    input.addEventListener('input', () => {
-      error.hidden = true;
-      input.removeAttribute('aria-invalid');
-    });
-    toggleDialog.replaceChildren(form);
-    if (!toggleDialog.open) toggleDialog.showModal();
-    input.focus();
-    input.select();
+    const t = performance.now();
+    if (lastTap[field] !== undefined && t - lastTap[field] < TAP_GUARD_MS) return;
+    lastTap[field] = t;
+    const { entries, checkin, total } = buildToggle(data, now, { field, value });
+    if (entries.length) store.saveEntries(entries);
+    store.saveCheckin(checkin);
+    const text = toggleNotice(field, value, total, checkin.month);
+    if (text) ctx.notify(text);
   }
 
-  // Toque fora da caixa fecha; ao fechar, o foco volta para o switch.
-  toggleDialog.addEventListener('click', (ev) => {
-    if (ev.target === toggleDialog) closeToggle();
-  });
-  toggleDialog.addEventListener('close', () => {
-    const field = toggling;
-    toggling = null;
-    if (!alive || !field) return;
-    const btn = content.querySelector(`[data-switch="${field}"]`);
-    if (btn) btn.focus();
-  });
-
-  function switchButton(field, text, on, month) {
+  function switchButton(field, text, on) {
     return h(
       'button',
       {
@@ -142,7 +78,7 @@ export function mount(el, ctx) {
         role: 'switch',
         'aria-checked': String(on),
         'data-switch': field,
-        onclick: () => onSwitch(field, !on, month)
+        onclick: () => onSwitch(field, !on)
       },
       h('span', { class: 'switch-text' }, text),
       h('span', { class: 'switch-track', 'aria-hidden': 'true' }, h('span', { class: 'switch-thumb' }))
@@ -342,9 +278,9 @@ export function mount(el, ctx) {
       h('section', { class: 'summary' }, ...summary(view)),
       upcomingBlock(view),
       section('Entradas', view.rows.income, month,
-        isCurrent && switchButton('incomeReceived', 'Recebi', view.flags.incomeReceived, month)),
+        isCurrent && switchButton('incomeReceived', 'Recebi', view.flags.incomeReceived)),
       section('Contas', view.rows.expense, month,
-        isCurrent && switchButton('billsPaid', 'Paguei', view.flags.billsPaid, month)),
+        isCurrent && switchButton('billsPaid', 'Paguei', view.flags.billsPaid)),
       h(
         'div',
         { class: 'foot' },
@@ -365,7 +301,6 @@ export function mount(el, ctx) {
     alive = false;
     unsubscribe();
     closeDialog();
-    closeToggle();
     el.replaceChildren();
   };
 }
