@@ -190,12 +190,16 @@ async function openConnectLink() {
   } else if (sameConfig(loadConfig(), incoming)) {
     startApp();
   } else {
-    startApp(); // fundo do diálogo: a planilha atual
+    // Fundo do diálogo: só a tela atual, sem atualizar nem abrir o check-in da planilha antiga.
+    render();
     const ok = await confirmDialog(
       'Esse link troca a planilha deste aparelho. Os dados guardados aqui serão apagados.',
       'Trocar'
     );
-    if (!ok) return;
+    if (!ok) {
+      startApp();
+      return;
+    }
     // Mesmo que "Trocar planilha" (Ajustes); o store descarta buscas em andamento ao limpar.
     if (unmountCurrent) unmountCurrent();
     unmountCurrent = null;
@@ -208,6 +212,7 @@ async function openConnectLink() {
     }
     saveConfig(incoming);
     openedThisVisit = false;
+    stripLink('#mes'); // a planilha nova começa sempre pelo Mês
     startApp();
   }
 }
