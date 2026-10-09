@@ -42,10 +42,12 @@ O app abre pelo ícone "Contas", sem a barra do navegador.
 - O check-in abre sozinho 1 vez por dia (ajustável em Ajustes). "Agora não" adia até amanhã (com "Toda vez", só pula aquela abertura); "Atualizar saldo de outubro" (na tela Mês) abre à mão.
 - A tela Mês tem ‹ › para trocar de mês e "Próximos meses" no mês atual. Tocar no valor edita; "Usar o valor padrão" aparece quando a conta tem padrão.
 - **Cartão do mês atual:** Na conta, **Falta receber**, Falta pagar e Sobra no fim do mês. A conta fecha: na conta + falta receber − falta pagar = sobra.
-- **Switches "Recebi" (Entradas) e "Paguei" (Contas):** só no mês atual, e sempre pedem o saldo junto.
-  - Com check-in no mês, abre um diálogo (ex.: "Contas de outubro pagas") com o último saldo preenchido; "Confirmar" grava e "Cancelar" não muda nada.
+- **Switches "Recebi" (Entradas) e "Paguei" (Contas):** só no mês atual, um toque, sem diálogo, e nunca mudam a sobra.
+  - Ligar "Recebi" transforma as entradas estimadas em lançamentos (some o "estimado") e soma o total ao "Na conta". Ligar "Paguei" faz o mesmo com as contas e desconta.
+  - Desligar faz o inverso no saldo; os lançamentos ficam.
+  - Aparece uma confirmação curta, que some com um toque (ex.: "Salário de outubro somado: + R$ 3.000,00 na conta.").
   - Sem check-in no mês, abre o "Atualizar saldo" (`#checkin/recebi` ou `#checkin/paguei`) com a resposta já marcada.
-  - Desligar um switch desfaz a marcação, e a pergunta volta no "Atualizar saldo".
+  - Se o valor real vier diferente do estimado, o "Atualizar saldo" corrige o "Na conta".
 - **Posso comprar?:** informe a parcela e a quantidade (1x a 24x) e toque em "Ver". O app responde se pode ou não, com a sobra mês a mês antes e depois da compra.
 - **Revisão semanal** (`#revisao`, botão "Revisar valores" na tela Mês): uma pergunta por vez, só sobre o mês que vem. Cada resposta é gravada na hora; a data da última revisão (`lastReviewAt`) só é gravada ao terminar. No fim mostra a sobra antes e depois.
 - **Lembrete:** a tela Mês mostra uma faixa com "Revisar agora" quando faz 7 dias ou mais sem revisar, ou quando nunca houve revisão.
@@ -107,9 +109,9 @@ Na aba `Config` da planilha de teste, apague o valor da chave `ultima_revisao` (
 No celular, com a planilha de teste (sem implantar o backend de novo):
 
 1. Abra a tela Mês e confira o cartão: na conta + falta receber − falta pagar = sobra.
-2. Ligue "Recebi" e informe o saldo. Depois ligue "Paguei" e informe o saldo. O cartão continua fechando.
-3. Desligue um dos dois: o switch apaga a marcação. Toque em "Atualizar saldo" e veja a pergunta voltar.
-4. Abra um diálogo (ligando ou desligando um switch), toque em "Cancelar" e confira que nada mudou.
+2. Ligue "Recebi": o "estimado" some das entradas, o "Na conta" sobe e a sobra fica igual.
+3. Ligue "Paguei": o "estimado" some das contas, o "Na conta" desce e a sobra fica igual.
+4. Desligue um dos dois: o "Na conta" volta, e a pergunta reaparece no "Atualizar saldo".
 
 ## Abas e colunas
 
