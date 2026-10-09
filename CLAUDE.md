@@ -58,7 +58,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - [x] Plano da Fase 2 escrito (plans/phase-2.md)
 - [x] Fase 2 executada: telas Check-in e Mês, app instalável; roteiro validado no celular
 - [x] Plano da Fase 3 escrito (plans/phase-3.md)
-- [ ] Fase 3: Posso comprar?, revisão semanal guiada, Ajustes, barra inferior e lembrete
+- [x] Fase 3 executada: Posso comprar?, revisão semanal guiada, Ajustes, barra inferior e lembrete; roteiro validado no celular
 - [ ] Entrega: planilha da esposa, link de configuração e carga real
 
 ## Como trabalhar neste repo
