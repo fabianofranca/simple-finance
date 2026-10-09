@@ -35,9 +35,10 @@ Cole o `Code.gs` inteiro de novo e use *Implantar → Gerenciar implantações �
 
 O app abre pelo ícone "Contas", sem a barra do navegador.
 
-## Como o app funciona (Fases 2 a 4)
+## Como o app funciona (Fases 2 a 4 e Entrega)
 
-- Na primeira abertura, pede o endereço (URL `/exec`) e a chave.
+- Na primeira abertura, pede o link de configuração (abrir o link ou colar na tela; endereço `/exec` e chave só em "Configurar à mão").
+- **Primeiro uso:** planilha sem contas ativas mostra "Vamos começar?" na tela Mês, com o botão "Cadastrar contas" (leva a Ajustes), e o check-in não abre sozinho. O primeiro saldo só é pedido depois da primeira conta.
 - **Barra inferior:** Mês · Posso comprar? · Ajustes (rotas `#mes`, `#comprar`, `#ajustes`). Check-in e revisão abrem sem a barra.
 - O check-in abre sozinho 1 vez por dia (ajustável em Ajustes). "Agora não" adia até amanhã (com "Toda vez", só pula aquela abertura); "Atualizar saldo de outubro" (na tela Mês) abre à mão.
 - A tela Mês tem ‹ › para trocar de mês e "Próximos meses" no mês atual. Tocar no valor edita; "Usar o valor padrão" aparece quando a conta tem padrão.
@@ -69,6 +70,7 @@ Na primeira abertura, informe a URL `/exec` e a chave e toque em *Salvar configu
 - **Ver previsão:** mostra o mês atual (na conta, falta pagar, sobra no fim do mês) e a sobra acumulada dos próximos 3 meses.
 - **Regravar ajustes:** grava os ajustes atuais de novo (idempotente); serve para testar a fila.
 - **Gerar massa de teste / Apagar tudo:** só aparecem na planilha de teste.
+- **Link de configuração:** informe a URL `/exec` e a chave (ou toque em "Gerar chave" para criar uma de 32 caracteres), toque em "Gerar link" e depois em "Copiar". Nada é gravado nem usa a configuração do aparelho.
 
 Roteiro de conferência do painel (Fase 1):
 
@@ -112,6 +114,48 @@ No celular, com a planilha de teste (sem implantar o backend de novo):
 2. Ligue "Recebi": o "estimado" some das entradas, o "Na conta" sobe e a sobra fica igual.
 3. Ligue "Paguei": o "estimado" some das contas, o "Na conta" desce e a sobra fica igual.
 4. Desligue um dos dois: o "Na conta" volta, e a pergunta reaparece no "Atualizar saldo".
+
+## Entrega: planilha da esposa
+
+Passo a passo para colocar o app na mão dela. Detalhes e decisões em [`plans/delivery.md`](plans/delivery.md).
+
+### Criar a planilha dela
+
+Na conta Google do Fabiano (assim ele mantém o script e as implantações):
+
+1. Crie uma planilha nova, por exemplo "Contas da casa", e abra *Extensões → Apps Script*.
+2. Cole o `apps-script/Code.gs` inteiro, **sem editar**.
+3. No painel (`dev.html`), toque em "Gerar chave" (seção "Link de configuração") e copie a chave.
+4. No Apps Script, *Configurações do projeto → Propriedades do script → Adicionar*: nome `SECRET`, valor igual à chave.
+5. *Implantar → Nova implantação → App da Web*, com **Executar como: eu** e **Acesso: qualquer pessoa**. Autorize e copie a URL `/exec`.
+6. Abra a planilha e confira que as abas foram criadas e que a `Config` **não** tem a linha `ambiente`.
+
+### Gerar e testar o link
+
+1. No painel (`dev.html`), seção "Link de configuração": informe a URL `/exec` e a chave, toque em "Gerar link" e depois em "Copiar".
+2. Teste numa **aba anônima**, que tem armazenamento próprio. O app deve abrir vazio, com "Vamos começar?". Não cadastre nada ali.
+
+O link tem o formato `https://fabianofranca.github.io/simple-finance/#conectar?u=<URL>&k=<chave>`. Fica depois do `#`, então não vai para o GitHub Pages, e o app o tira da barra de endereço e do histórico depois de usado. Quem tiver o link acessa a planilha: se vazar, troque a `SECRET` nas Propriedades do script (a URL continua a mesma).
+
+### Compartilhar e mandar
+
+- Compartilhe a planilha com ela como *Leitor*: ela vê tudo no Sheets, mas não muda abas e cabeçalhos sem querer. Ela edita os dados pelo app.
+- Mande o link só para ela, pelo WhatsApp.
+
+### Sessão de carga com ela
+
+No celular dela, junto com o Fabiano:
+
+1. Abra o link.
+2. Instale o app. **Android:** menu do Chrome → "Instalar app". **iPhone:** Compartilhar → "Adicionar à Tela de Início", abra pelo ícone e **cole o link** na tela de configuração (o app instalado tem armazenamento separado do Safari).
+3. Toque em "Cadastrar contas" e cadastre o Salário (Entrada, com valor padrão) e as contas da casa. Recorrentes, como Unha, levam valor padrão; faturas ficam sem padrão.
+4. Volte ao Mês: o primeiro check-in pede o saldo de hoje e se as contas e o salário do mês já foram pagos e recebidos.
+5. Preencha as faturas do mês atual e as dos próximos meses que ela já souber (›).
+6. Ligue "Recebi" e "Paguei" se for o caso e confira a sobra e os Próximos meses com ela.
+7. Faça um "Posso comprar?" de exemplo.
+8. Em Ajustes, escolha a frequência do check-in.
+
+**Atenção:** abrir o link dela no celular do Fabiano troca a planilha daquele aparelho (o app pergunta antes e apaga os dados guardados ali). Para voltar à de teste, abra o link de teste ou use "Trocar planilha" em Ajustes.
 
 ## Abas e colunas
 
