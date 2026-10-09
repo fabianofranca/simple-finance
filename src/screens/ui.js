@@ -66,3 +66,48 @@ export function confirmDialog(text, okLabel = 'OK') {
     cancel.focus();
   });
 }
+
+// Campos que devem receber o foco sem selecionar o texto (ver focusAtEnd).
+const keepCaret = new WeakSet();
+
+// Ao ganhar o foco, seleciona o texto todo: o valor antigo vem preenchido e ela só digita o novo.
+// No Android/iOS o toque posiciona o cursor DEPOIS do `focus` e desfaz a seleção; por isso seleciona
+// de novo num setTimeout e engole o soltar do dedo (mouseup/touchend) que acompanha esse primeiro toque.
+// Toques seguintes, com o campo já focado, posicionam o cursor normalmente.
+export function selectOnFocus(input) {
+  let fresh = false; // acabou de ganhar foco e o dedo ainda não foi solto
+  let timer = null;
+  input.addEventListener('focus', () => {
+    if (keepCaret.has(input)) return;
+    fresh = true;
+    input.select();
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (document.activeElement === input) input.select();
+      // Foco programático não tem "soltar o dedo": encerra a janela sozinho.
+      timer = setTimeout(() => { fresh = false; }, 400);
+    }, 0);
+  });
+  const swallow = (ev) => {
+    if (!fresh) return;
+    fresh = false;
+    ev.preventDefault();
+    input.select();
+  };
+  input.addEventListener('mouseup', swallow);
+  input.addEventListener('touchend', swallow);
+  input.addEventListener('blur', () => { fresh = false; clearTimeout(timer); });
+  return input;
+}
+
+// Devolve o foco ao campo com o cursor no fim, sem selecionar (ex.: depois do "±").
+export function focusAtEnd(input) {
+  keepCaret.add(input);
+  input.focus();
+  const end = input.value.length;
+  input.setSelectionRange(end, end);
+  setTimeout(() => {
+    if (document.activeElement === input) input.setSelectionRange(end, end);
+    keepCaret.delete(input);
+  }, 50);
+}

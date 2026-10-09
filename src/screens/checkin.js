@@ -3,6 +3,7 @@
 import { checkinForm, canConfirm, buildCheckin, dropNotice, localDay } from '../checkin.js';
 import { formatInput, parseMoney } from '../money.js';
 import { monthName } from '../month-view.js';
+import { focusAtEnd, selectOnFocus } from './ui.js';
 
 const SNOOZE_KEY = 'sf.snooze';
 
@@ -83,6 +84,7 @@ export function mount(el, ctx) {
       placeholder: '0,00',
     });
     if (form.balance !== null) input.value = formatInput(form.balance);
+    selectOnFocus(input);
     const sign = h('button', { type: 'button', class: 'sign', 'aria-label': 'Trocar o sinal', text: '±' });
     const balanceBox = h(
       'div',
@@ -102,7 +104,7 @@ export function mount(el, ctx) {
       const text = input.value.trim();
       input.value = /^[-−]/.test(text) ? text.replace(/^[-−]\s*/, '') : `-${text}`;
       refresh();
-      input.focus();
+      focusAtEnd(input); // cursor no fim, sem selecionar (senão o próximo dígito apagaria o sinal)
     });
 
     const rows = [balanceBox];

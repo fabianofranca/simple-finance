@@ -2,7 +2,7 @@
 // Regras de exibição em src/buy-view.js; dinheiro sempre por src/money.js.
 import { buyView } from '../buy-view.js';
 import { parseMoney } from '../money.js';
-import { h, money } from './ui.js';
+import { h, money, selectOnFocus } from './ui.js';
 
 const MIN_COUNT = 1;
 const MAX_COUNT = 24;
@@ -25,6 +25,7 @@ export function mount(el, ctx) {
     enterkeyhint: 'go',
     placeholder: '0,00'
   });
+  selectOnFocus(input);
   const countText = h('span', { class: 'stepper-value', id: 'buy-count', 'aria-live': 'polite' }, '1x');
   const minus = h('button', { type: 'button', class: 'step-btn', 'aria-label': 'Menos uma parcela', onclick: () => step(-1) }, '−');
   const plus = h('button', { type: 'button', class: 'step-btn', 'aria-label': 'Mais uma parcela', onclick: () => step(1) }, '+');

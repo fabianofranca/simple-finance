@@ -5,7 +5,7 @@ import { monthView, monthLabel, monthName, navRange, resolveMonth } from '../mon
 import { formatMoney, formatInput, parseMoney } from '../money.js';
 import { buildToggle, toggleNotice } from '../checkin.js';
 import { reminder } from '../review.js';
-import { h, money, queueLine } from './ui.js';
+import { h, money, queueLine, selectOnFocus } from './ui.js';
 
 // Linha do resumo: rótulo à esquerda, valor à direita.
 function summaryLine(label, cents, strong = false) {
@@ -95,6 +95,7 @@ export function mount(el, ctx) {
       enterkeyhint: 'done'
     });
     input.value = row.empty ? '' : formatInput(row.amount);
+    selectOnFocus(input);
     const error = h('p', { class: 'edit-error', role: 'alert', hidden: true });
 
     function save(amount) {
@@ -138,7 +139,6 @@ export function mount(el, ctx) {
     dialog.replaceChildren(form);
     if (!dialog.open) dialog.showModal();
     input.focus();
-    input.select();
   }
 
   // Toque fora da caixa fecha; ao fechar, o foco volta para o valor editado.
