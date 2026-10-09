@@ -27,6 +27,9 @@ const data = ({ accounts = [], entries = [], checkins = [], settings = {} } = {}
   accounts, entries, checkins, settings,
 });
 
+// Dados para as regras de abertura: shouldOpenCheckin só abre com conta ativa.
+const openData = (o = {}) => data({ accounts: [{ id: 'a', name: 'Conta', type: 'expense', defaultAmount: 100, order: 1, active: true }], ...o });
+
 // Salário 1.500 e contas 1.000 todo mês.
 const accounts = [
   { id: 'salario', name: 'Salário', type: 'income', defaultAmount: reais(1500), order: 2, active: true },
@@ -41,37 +44,50 @@ test('localDay usa o dia local', () => {
 test('sem nenhum check-in sempre abre, em qualquer frequência e mesmo adiado', () => {
   const now = local(2026, 10, 15);
   for (const checkinFrequency of ['always', 'daily', 'weekly', undefined]) {
-    assert.equal(shouldOpenCheckin(data({ settings: { checkinFrequency } }), now, null), true);
-    assert.equal(shouldOpenCheckin(data({ settings: { checkinFrequency } }), now, '2026-10-15'), true);
+    assert.equal(shouldOpenCheckin(openData({ settings: { checkinFrequency } }), now, null), true);
+    assert.equal(shouldOpenCheckin(openData({ settings: { checkinFrequency } }), now, '2026-10-15'), true);
   }
 });
 
+test('sem conta ativa nunca abre (nenhuma conta ou só arquivadas), em qualquer frequência', () => {
+  const archived = [{ id: 'a', name: 'Velha', type: 'expense', defaultAmount: 100, order: 1, active: false }];
+  const now = local(2026, 10, 15);
+  for (const accs of [[], archived]) {
+    for (const checkinFrequency of ['always', 'daily', 'weekly']) {
+      assert.equal(shouldOpenCheckin(data({ accounts: accs, settings: { checkinFrequency } }), now, null), false);
+    }
+    const withCheckin = data({ accounts: accs, checkins: [ck(local(2026, 10, 1), '2026-10')], settings: { checkinFrequency: 'weekly' } });
+    assert.equal(shouldOpenCheckin(withCheckin, local(2026, 10, 30), null), false);
+  }
+  assert.equal(shouldOpenCheckin(openData(), now, null), true);
+});
+
 test('always: abre toda vez, mesmo logo depois de um check-in', () => {
-  const d = data({ checkins: [ck(local(2026, 10, 15, 9), '2026-10')], settings: { checkinFrequency: 'always' } });
+  const d = openData({ checkins: [ck(local(2026, 10, 15, 9), '2026-10')], settings: { checkinFrequency: 'always' } });
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 9, 1), null), true);
 });
 
 test('daily: abre só quando o último check-in não é de hoje (dia local)', () => {
-  const d = data({ checkins: [ck(local(2026, 10, 14, 23, 59), '2026-10')], settings: { checkinFrequency: 'daily' } });
+  const d = openData({ checkins: [ck(local(2026, 10, 14, 23, 59), '2026-10')], settings: { checkinFrequency: 'daily' } });
   // Um minuto depois, mas já é outro dia local.
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 0, 0), null), true);
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 14, 23, 59, 30), null), false);
 
-  const morning = data({ checkins: [ck(local(2026, 10, 15, 0, 1), '2026-10')], settings: { checkinFrequency: 'daily' } });
+  const morning = openData({ checkins: [ck(local(2026, 10, 15, 0, 1), '2026-10')], settings: { checkinFrequency: 'daily' } });
   assert.equal(shouldOpenCheckin(morning, local(2026, 10, 15, 23, 59), null), false);
 });
 
 test('frequência ausente vale como daily', () => {
-  const d = data({ checkins: [ck(local(2026, 10, 15, 8), '2026-10')], settings: {} });
+  const d = openData({ checkins: [ck(local(2026, 10, 15, 8), '2026-10')], settings: {} });
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 20), null), false);
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 16, 8), null), true);
-  const noSettings = { accounts: [], entries: [], checkins: d.checkins };
+  const noSettings = { accounts: d.accounts, entries: [], checkins: d.checkins };
   assert.equal(shouldOpenCheckin(noSettings, local(2026, 10, 16, 8), null), true);
 });
 
 test('weekly: 6 dias não abre, 7 dias abre', () => {
   const last = local(2026, 10, 1, 10);
-  const d = data({ checkins: [ck(last, '2026-10')], settings: { checkinFrequency: 'weekly' } });
+  const d = openData({ checkins: [ck(last, '2026-10')], settings: { checkinFrequency: 'weekly' } });
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 7, 10), null), false);
   assert.equal(shouldOpenCheckin(d, new Date(last.getTime() + 7 * 864e5 - 1), null), false);
   assert.equal(shouldOpenCheckin(d, new Date(last.getTime() + 7 * 864e5), null), true);
@@ -79,7 +95,7 @@ test('weekly: 6 dias não abre, 7 dias abre', () => {
 });
 
 test('último check-in é o de maior `at`, não o último da lista', () => {
-  const d = data({
+  const d = openData({
     checkins: [ck(local(2026, 10, 15, 8), '2026-10'), ck(local(2026, 10, 10, 8), '2026-10')],
     settings: { checkinFrequency: 'daily' },
   });
@@ -87,7 +103,7 @@ test('último check-in é o de maior `at`, não o último da lista', () => {
 });
 
 test('"Agora não": adiado hoje não abre; amanhã volta a abrir (daily)', () => {
-  const d = data({ checkins: [ck(local(2026, 10, 10), '2026-10')], settings: { checkinFrequency: 'daily' } });
+  const d = openData({ checkins: [ck(local(2026, 10, 10), '2026-10')], settings: { checkinFrequency: 'daily' } });
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 9), '2026-10-15'), false);
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 23, 59), '2026-10-15'), false);
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 16, 0, 0), '2026-10-15'), true);
@@ -95,7 +111,7 @@ test('"Agora não": adiado hoje não abre; amanhã volta a abrir (daily)', () =>
 });
 
 test('"Agora não" com "toda vez" é ignorado', () => {
-  const d = data({ checkins: [ck(local(2026, 10, 10), '2026-10')], settings: { checkinFrequency: 'always' } });
+  const d = openData({ checkins: [ck(local(2026, 10, 10), '2026-10')], settings: { checkinFrequency: 'always' } });
   assert.equal(shouldOpenCheckin(d, local(2026, 10, 15, 9), '2026-10-15'), true);
 });
 
