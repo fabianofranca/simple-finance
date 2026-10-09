@@ -73,3 +73,9 @@ button.link { min-height: 44px; padding: 6px 8px; color: var(--accent); font-siz
 .switch[aria-checked="true"] .switch-thumb { transform: translateX(22px); background: var(--on-accent); }
 .switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .switch-track, .switch-thumb { transition: none; } }
+
+/* Convite do primeiro uso (planilha sem contas). */
+.invite { margin-top: 24px; padding: 24px 16px; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.invite-title { margin: 0 0 8px; font-size: 1.25rem; color: var(--fg); }
+.invite-text { margin: 0 0 16px; color: var(--muted); }
+.invite button { min-height: 44px; }

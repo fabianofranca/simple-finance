@@ -5,6 +5,7 @@ import { monthView, monthLabel, monthName, navRange, resolveMonth } from '../mon
 import { formatMoney, formatInput, parseMoney } from '../money.js';
 import { buildToggle, toggleNotice } from '../checkin.js';
 import { reminder } from '../review.js';
+import { activeAccounts } from '../accounts.js';
 import { h, money, queueLine, selectOnFocus } from './ui.js';
 
 // Linha do resumo: rótulo à esquerda, valor à direita.
@@ -257,6 +258,17 @@ export function mount(el, ctx) {
     );
   }
 
+  // Convite do primeiro uso (planilha sem contas).
+  function invite() {
+    return h(
+      'section',
+      { class: 'invite' },
+      h('h2', { class: 'invite-title' }, 'Vamos começar?'),
+      h('p', { class: 'invite-text' }, 'Cadastre o salário e as contas da casa.'),
+      h('button', { type: 'button', onclick: () => ctx.navigate('#ajustes', { replace: true }) }, 'Cadastrar contas')
+    );
+  }
+
   // ----- desenho -----
   function render() {
     if (!alive) return;
@@ -271,16 +283,22 @@ export function mount(el, ctx) {
     const view = monthView(data, today, month);
 
     const isCurrent = view.kind === 'current';
+    // Primeiro uso: sem conta ativa, o convite substitui as listas (e os switches).
+    const firstUse = activeAccounts(data.accounts).length === 0;
     const parts = [
       header(view, current),
       queueLine(store),
       reminderBanner(data, today),
       h('section', { class: 'summary' }, ...summary(view)),
       upcomingBlock(view),
-      section('Entradas', view.rows.income, month,
-        isCurrent && switchButton('incomeReceived', 'Recebi', view.flags.incomeReceived)),
-      section('Contas', view.rows.expense, month,
-        isCurrent && switchButton('billsPaid', 'Paguei', view.flags.billsPaid)),
+      ...(firstUse
+        ? [invite()]
+        : [
+            section('Entradas', view.rows.income, month,
+              isCurrent && switchButton('incomeReceived', 'Recebi', view.flags.incomeReceived)),
+            section('Contas', view.rows.expense, month,
+              isCurrent && switchButton('billsPaid', 'Paguei', view.flags.billsPaid))
+          ]),
       h(
         'div',
         { class: 'foot' },

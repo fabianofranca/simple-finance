@@ -10,6 +10,7 @@ import * as buy from './screens/buy.js';
 import * as review from './screens/review.js';
 import * as settings from './screens/settings.js';
 import { shouldOpenCheckin } from './checkin.js';
+import { activeAccounts } from './accounts.js';
 import { confirmDialog } from './screens/ui.js';
 
 const root = document.getElementById('app');
@@ -126,6 +127,13 @@ function render() {
   updateTabbar(tab);
   root.replaceChildren();
   unmountCurrent = screen.mount(root, ctx) || null;
+  // Primeiro uso: depois de cadastrar as contas, o Mês abre o primeiro check-in (saldo obrigatório).
+  // Só vale sem nenhum check-in; com histórico, abrir a cada troca de aba seria insistente.
+  // maybeOpenCheckin respeita openedThisVisit, então abre no máximo uma vez por visita.
+  if (hasConfig() && screen === month) {
+    const data = store.getData();
+    if (data && activeAccounts(data.accounts).length && !(data.checkins || []).length) maybeOpenCheckin();
+  }
 }
 
 // Abre o check-in sozinho quando for a hora (regras em src/checkin.js).
