@@ -9,9 +9,10 @@ import {
   dropNotice,
   monthFlags,
   buildToggle,
-  toggleText,
+  toggleNotice,
 } from '../src/checkin.js';
 import { currentStatus } from '../src/forecast.js';
+import { formatMoney } from '../src/money.js';
 
 // Datas sempre locais (new Date(y, m, d, h)); `at` é o ISO dessas datas,
 // para os testes valerem em qualquer fuso.
@@ -233,40 +234,140 @@ test('dropNotice com o payload de buildCheckin', () => {
   assert.equal(notice.text, 'Sua sobra de outubro caiu R$ 120,00 desde 03/10');
 });
 
-test('buildToggle liga billsPaid mantendo incomeReceived do último check-in do mês', () => {
-  const d = data({
-    accounts,
-    checkins: [ck(local(2026, 10, 3), '2026-10', { balance: reais(2000), incomeReceived: true })],
+// Exemplo do plano: Na conta 500; Salário 3.000 (padrão, estimado); contas do mês
+// Nubank 900, Inter 600, Renner 300, C&A 200 (lançamentos) e Unha 150 (padrão, estimada).
+const toggleAccounts = [
+  { id: 'salario', name: 'Salário', type: 'income', defaultAmount: reais(3000), order: 1, active: true },
+  { id: 'nubank', name: 'Nubank', type: 'expense', defaultAmount: null, order: 2, active: true },
+  { id: 'inter', name: 'Inter', type: 'expense', defaultAmount: null, order: 3, active: true },
+  { id: 'renner', name: 'Renner', type: 'expense', defaultAmount: null, order: 4, active: true },
+  { id: 'cea', name: 'C&A', type: 'expense', defaultAmount: null, order: 5, active: true },
+  { id: 'unha', name: 'Unha', type: 'expense', defaultAmount: reais(150), order: 6, active: true },
+];
+const entry = (accountId, v) => ({ accountId, month: '2026-10', amount: reais(v) });
+const toggleEntries = [entry('nubank', 900), entry('inter', 600), entry('renner', 300), entry('cea', 200)];
+const toggleData = (over = {}) => data({
+  accounts: toggleAccounts,
+  entries: toggleEntries,
+  checkins: [ck(local(2026, 10, 3), '2026-10', { balance: reais(500) })],
+  ...over,
+});
+// Aplica o resultado do toque aos dados, como a tela faz.
+const apply = (d, r) => ({ ...d, entries: [...d.entries, ...r.entries], checkins: [...d.checkins, r.checkin] });
+const NOW = (h) => local(2026, 10, 10, h);
+
+test('buildToggle: o exemplo do plano, nos quatro toques', () => {
+  assert.equal(currentStatus(toggleData(), NOW(9)).endOfMonth, reais(1350));
+
+  let d = toggleData();
+  const recebi = buildToggle(d, NOW(9), { field: 'incomeReceived', value: true });
+  assert.deepEqual(recebi.entries, [entry('salario', 3000)]);
+  assert.equal(recebi.total, reais(3000));
+  assert.equal(recebi.checkin.balance, reais(3500));
+  d = apply(d, recebi);
+  let s = currentStatus(d, NOW(9));
+  assert.equal(s.toReceive, 0);
+  assert.equal(s.endOfMonth, reais(1350));
+
+  const paguei = buildToggle(d, NOW(10), { field: 'billsPaid', value: true });
+  assert.deepEqual(paguei.entries, [entry('unha', 150)]);
+  assert.equal(paguei.total, reais(2150));
+  assert.equal(paguei.checkin.balance, reais(1350));
+  d = apply(d, paguei);
+  s = currentStatus(d, NOW(10));
+  assert.equal(s.toPay, 0);
+  assert.equal(s.balance, reais(1350));
+  assert.equal(s.endOfMonth, reais(1350));
+
+  const desPaguei = buildToggle(d, NOW(11), { field: 'billsPaid', value: false });
+  assert.deepEqual(desPaguei.entries, []);
+  assert.equal(desPaguei.checkin.balance, reais(3500));
+  d = apply(d, desPaguei);
+  s = currentStatus(d, NOW(11));
+  assert.equal(s.toPay, reais(2150));
+  assert.equal(s.endOfMonth, reais(1350));
+
+  const desRecebi = buildToggle(d, NOW(12), { field: 'incomeReceived', value: false });
+  assert.deepEqual(desRecebi.entries, []);
+  assert.equal(desRecebi.checkin.balance, reais(500));
+  d = apply(d, desRecebi);
+  assert.equal(currentStatus(d, NOW(12)).endOfMonth, reais(1350));
+});
+
+test('buildToggle: projectedBalance igual à sobra de antes nos quatro toques', () => {
+  let d = toggleData();
+  const before = currentStatus(d, NOW(8)).endOfMonth;
+  const steps = [
+    ['incomeReceived', true], ['billsPaid', true], ['billsPaid', false], ['incomeReceived', false],
+  ];
+  steps.forEach(([field, value], i) => {
+    const r = buildToggle(d, NOW(9 + i), { field, value });
+    assert.equal(r.checkin.projectedBalance, before);
+    assert.equal(r.checkin.at, NOW(9 + i).toISOString());
+    assert.equal(r.checkin.month, '2026-10');
+    d = apply(d, r);
   });
-  const now = local(2026, 10, 10, 9);
-  const c = buildToggle(d, now, { field: 'billsPaid', value: true, balance: reais(1000) });
-  assert.equal(c.at, now.toISOString());
-  assert.equal(c.month, '2026-10');
-  assert.equal(c.balance, reais(1000));
-  assert.equal(c.billsPaid, true);
-  assert.equal(c.incomeReceived, true);
-  assert.equal(c.projectedBalance, reais(1000));
-  assert.equal(c.projectedBalance, currentStatus({ ...d, checkins: [...d.checkins, c] }, now).endOfMonth);
+});
+
+test('buildToggle copia a outra marcação do último check-in do mês', () => {
+  const d = toggleData({
+    checkins: [
+      ck(local(2026, 10, 8), '2026-10', { balance: reais(500), billsPaid: true, incomeReceived: false }),
+      ck(local(2026, 10, 3), '2026-10', { balance: reais(9999), billsPaid: false, incomeReceived: true }),
+    ],
+  });
+  const r = buildToggle(d, NOW(9), { field: 'incomeReceived', value: true });
+  assert.equal(r.checkin.incomeReceived, true);
+  assert.equal(r.checkin.billsPaid, true);
+  assert.equal(r.checkin.balance, reais(3500));
+  const r2 = buildToggle(d, NOW(9), { field: 'billsPaid', value: false });
+  assert.equal(r2.checkin.billsPaid, false);
+  assert.equal(r2.checkin.incomeReceived, false);
+});
+
+test('buildToggle: conta arquivada com lançamento entra no total e não vira lançamento', () => {
+  const d = toggleData({
+    accounts: [...toggleAccounts, { id: 'velha', name: 'Velha', type: 'expense', defaultAmount: reais(80), order: 7, active: false }],
+    entries: [...toggleEntries, entry('velha', 100)],
+  });
+  const r = buildToggle(d, NOW(9), { field: 'billsPaid', value: true });
+  assert.deepEqual(r.entries, [entry('unha', 150)]);
+  assert.equal(r.total, reais(2250));
+  assert.equal(r.checkin.balance, reais(500 - 2250));
+});
+
+test('buildToggle: conta arquivada sem lançamento e conta sem valor ficam de fora', () => {
+  const d = toggleData({
+    accounts: [
+      ...toggleAccounts,
+      { id: 'velha', name: 'Velha', type: 'expense', defaultAmount: reais(80), order: 7, active: false },
+      { id: 'vazia', name: 'Vazia', type: 'expense', defaultAmount: null, order: 8, active: true },
+    ],
+  });
+  const r = buildToggle(d, NOW(9), { field: 'billsPaid', value: true });
+  assert.deepEqual(r.entries, [entry('unha', 150)]);
+  assert.equal(r.total, reais(2150));
+});
+
+test('buildToggle: sem check-in no mês lança, mesmo com check-in do mês anterior', () => {
+  assert.throws(() => buildToggle(toggleData({ checkins: [] }), NOW(9), { field: 'billsPaid', value: true }), Error);
+  const old = toggleData({ checkins: [ck(local(2026, 9, 20), '2026-09', { balance: reais(500) })] });
+  assert.throws(() => buildToggle(old, NOW(9), { field: 'incomeReceived', value: true }), Error);
 });
 
 test('buildToggle com field inválido lança', () => {
-  const d = data({ accounts, checkins: [ck(local(2026, 10, 3), '2026-10')] });
-  assert.throws(() => buildToggle(d, local(2026, 10, 10), { field: 'x', value: true, balance: 0 }), Error);
+  assert.throws(() => buildToggle(toggleData(), NOW(9), { field: 'x', value: true }), Error);
 });
 
 test('desfazer: ligar e desligar billsPaid mostra a linha de novo com "Ainda não"', () => {
-  const now = local(2026, 10, 10, 9);
-  let d = data({ accounts, checkins: [ck(local(2026, 10, 3), '2026-10', { balance: reais(2000), incomeReceived: true })] });
-  const on = buildToggle(d, now, { field: 'billsPaid', value: true, balance: reais(1000) });
-  d = { ...d, checkins: [...d.checkins, on] };
-  assert.deepEqual(checkinForm(d, local(2026, 10, 10, 10)).bills, { show: false, preset: true });
+  let d = toggleData({ checkins: [ck(local(2026, 10, 3), '2026-10', { balance: reais(2000), incomeReceived: true })] });
+  d = apply(d, buildToggle(d, NOW(9), { field: 'billsPaid', value: true }));
+  assert.deepEqual(checkinForm(d, NOW(10)).bills, { show: false, preset: true });
   // Linha escondida continua gravando true.
-  const hidden = buildCheckin(d, local(2026, 10, 10, 10), { balance: reais(1000), billsPaid: false, incomeReceived: false });
+  const hidden = buildCheckin(d, NOW(10), { balance: reais(1000), billsPaid: false, incomeReceived: false });
   assert.equal(hidden.billsPaid, true);
-
-  const off = buildToggle(d, local(2026, 10, 10, 11), { field: 'billsPaid', value: false, balance: reais(1000) });
-  d = { ...d, checkins: [...d.checkins, off] };
-  assert.deepEqual(checkinForm(d, local(2026, 10, 10, 12)).bills, { show: true, preset: false });
+  d = apply(d, buildToggle(d, NOW(11), { field: 'billsPaid', value: false }));
+  assert.deepEqual(checkinForm(d, NOW(12)).bills, { show: true, preset: false });
 });
 
 test('monthFlags: sem check-in no mês (inclusive só do mês anterior) devolve tudo false', () => {
@@ -286,9 +387,14 @@ test('monthFlags usa o último check-in do mês por `at`, não o último da list
   assert.deepEqual(monthFlags(d, local(2026, 10, 10)), { hasCheckin: true, billsPaid: true, incomeReceived: false });
 });
 
-test('toggleText: os quatro textos do diálogo', () => {
-  assert.deepEqual(toggleText('billsPaid', true, '2026-10'), { title: 'Contas de outubro pagas', label: 'Quanto ficou na conta?' });
-  assert.deepEqual(toggleText('billsPaid', false, '2026-10'), { title: 'Contas de outubro ainda não pagas', label: 'Quanto tem na conta agora?' });
-  assert.deepEqual(toggleText('incomeReceived', true, '2026-10'), { title: 'Salário de outubro recebido', label: 'Quanto tem na conta agora?' });
-  assert.deepEqual(toggleText('incomeReceived', false, '2026-10'), { title: 'Salário de outubro ainda não caiu', label: 'Quanto tem na conta agora?' });
+test('toggleNotice: os quatro textos e null com total 0', () => {
+  const m3 = formatMoney(reais(3000));
+  const m2 = formatMoney(reais(2150));
+  assert.equal(toggleNotice('incomeReceived', true, reais(3000), '2026-10'), `Salário de outubro somado: +\u00a0${m3} na conta.`);
+  assert.equal(toggleNotice('incomeReceived', false, reais(3000), '2026-10'), `Salário de outubro tirado: −\u00a0${m3} na conta.`);
+  assert.equal(toggleNotice('billsPaid', true, reais(2150), '2026-10'), `Contas de outubro descontadas: −\u00a0${m2} na conta.`);
+  assert.equal(toggleNotice('billsPaid', false, reais(2150), '2026-10'), `Contas de outubro devolvidas: +\u00a0${m2} na conta.`);
+  assert.match(m3, /^R\$\s3\.000,00$/);
+  assert.equal(toggleNotice('billsPaid', true, 0, '2026-10'), null);
+  assert.equal(toggleNotice('incomeReceived', false, 0, '2026-10'), null);
 });
