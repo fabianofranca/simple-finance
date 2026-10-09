@@ -2,7 +2,7 @@
 // Regras (perguntas, textos, antes/depois) em src/review.js; aqui só se monta a tela.
 import { reviewQuestions, questionText, monthEnd, reviewDone } from '../review.js';
 import { formatInput, parseMoney } from '../money.js';
-import { h, queueLine } from './ui.js';
+import { h, queueLine, selectOnFocus } from './ui.js';
 
 export function mount(el, ctx) {
   const { store } = ctx;
@@ -80,6 +80,7 @@ export function mount(el, ctx) {
       enterkeyhint: 'done'
     });
     input.value = item.kind === 'ask' ? '' : formatInput(item.amount);
+    selectOnFocus(input);
     const error = h('p', { class: 'review-error', role: 'alert', hidden: true });
 
     input.addEventListener('input', () => {
@@ -119,7 +120,6 @@ export function mount(el, ctx) {
 
     show(h('h1', { class: 'review-title', tabindex: '-1' }, title), form);
     input.focus();
-    input.select();
   }
 
   function finish() {

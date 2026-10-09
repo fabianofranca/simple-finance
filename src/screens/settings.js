@@ -3,7 +3,7 @@
 import { activeAccounts, archivedAccounts, archive, move, newAccount, reactivate } from '../accounts.js';
 import { clearConfig, loadConfig, shortUrl } from '../config.js';
 import { formatInput, formatMoney, parseMoney } from '../money.js';
-import { confirmDialog, h, queueLine } from './ui.js';
+import { confirmDialog, h, queueLine, selectOnFocus } from './ui.js';
 
 const FREQUENCIES = [
   ['always', 'Toda vez'],
@@ -60,6 +60,7 @@ export function mount(el, ctx) {
       placeholder: 'Sem valor padrão'
     });
     amount.value = account && Number.isInteger(account.defaultAmount) ? formatInput(account.defaultAmount) : '';
+    selectOnFocus(amount);
     const error = h('p', { class: 'account-error', role: 'alert', hidden: true });
 
     const typeButtons = TYPES.map((value) =>
