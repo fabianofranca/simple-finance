@@ -142,19 +142,20 @@ export function buildToggle(data, now, { field, value }) {
 }
 
 // Confirmação curta depois do toque (sem diálogo); null com total 0.
-// `total` em centavos; o sinal vem do texto, não do número.
+// `total` em centavos; o sinal vem do texto, não do número, e fica colado ao valor
+// (espaço não-quebrável) para não sobrar sozinho no fim da linha.
 export function toggleNotice(field, value, total, month) {
   if (!total) return null;
   const name = monthName(month);
   const money = formatMoney(Math.abs(total));
   if (field === 'incomeReceived') {
     return value
-      ? `Salário de ${name} somado: + ${money} na conta.`
-      : `Salário de ${name} tirado: − ${money} na conta.`;
+      ? `Salário de ${name} somado: +\u00a0${money} na conta.`
+      : `Salário de ${name} tirado: −\u00a0${money} na conta.`;
   }
   return value
-    ? `Contas de ${name} descontadas: − ${money} na conta.`
-    : `Contas de ${name} devolvidas: + ${money} na conta.`;
+    ? `Contas de ${name} descontadas: −\u00a0${money} na conta.`
+    : `Contas de ${name} devolvidas: +\u00a0${money} na conta.`;
 }
 
 // Aviso educativo: a sobra caiu desde o check-in anterior do mesmo mês?
