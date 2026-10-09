@@ -36,12 +36,13 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `dev.html` + `src/dev.js` + `styles.css`: painel de desenvolvimento (fora do app; mesma config e cache).
 - `src/config.js`: URL e chave no `localStorage`.
 - `src/api.js`: cliente do Apps Script (`loadAll`, `save*`, `seed`, `reset`, `ping`), com timeout e medição de latência.
-- `src/store.js`: cache local e fila de gravação em segundo plano.
+- `src/store.js`: cache local e fila de gravação em segundo plano; `clear()` apaga dados e fila (trocar planilha).
 - `src/forecast.js`: cálculo do fluxo de caixa (módulo puro).
-- `src/app.js`: roteador por hash (`#mes`, `#mes/AAAA-MM`, `#checkin`, `#checkin/auto`), faixa de aviso e abertura automática do check-in.
-- `src/screens/`: telas `setup.js` (configuração), `month.js` (Mês) e `checkin.js` (Check-in), no contrato `mount(el, ctx)` → `unmount()`.
-- `src/money.js`, `src/checkin.js`, `src/month-view.js`: lógica pura das telas (dinheiro pt-BR, regras do check-in, o que a tela Mês exibe).
-- `styles/`: `app.css` (tokens e base), `month.css`, `checkin.css`.
+- `src/app.js`: roteador por hash (`#mes`, `#mes/AAAA-MM`, `#comprar`, `#ajustes`, `#revisao`, `#checkin`, `#checkin/auto`), barra inferior (Mês · Posso comprar? · Ajustes), faixa de aviso e abertura automática do check-in.
+- `src/screens/`: telas `setup.js` (configuração), `month.js` (Mês), `checkin.js` (Check-in), `buy.js` (Posso comprar?), `review.js` (Revisão) e `settings.js` (Ajustes), no contrato `mount(el, ctx)` → `unmount()`.
+- `src/screens/ui.js`: helpers de tela (`h`, `money`, `queueLine`, `confirmDialog`).
+- `src/money.js`, `src/checkin.js`, `src/month-view.js`, `src/buy-view.js`, `src/review.js`, `src/accounts.js`: lógica pura das telas (dinheiro pt-BR, regras do check-in, o que a tela Mês exibe, resposta do Posso comprar?, perguntas e lembrete da revisão, ordem e arquivo das contas).
+- `styles/`: `app.css` (tokens e base), `month.css`, `checkin.css`, `buy.css`, `review.css`, `settings.css`.
 - `manifest.webmanifest` + `icons/`: app instalável na tela inicial (`icon.svg` é a fonte dos PNGs).
 - `tests/`: testes com `node --test`.
 - `scripts/smoke-test.sh`: teste via `curl`; modo padrão (não destrutivo) e `SMOKE_FULL=1` (só na planilha de teste).

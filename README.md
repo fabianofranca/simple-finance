@@ -1,8 +1,8 @@
 # Simple Finance
 
-App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-2.md`](plans/phase-2.md).
+App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-3.md`](plans/phase-3.md).
 
-- **`index.html` é o app** (telas Check-in e Mês).
+- **`index.html` é o app** (Mês, Check-in, Posso comprar?, Revisar valores e Ajustes).
 - **`dev.html` é o painel de desenvolvimento**: mesmo site, mesma configuração e mesmo cache. Abra em `…/simple-finance/dev.html`.
 
 ## Backend (primeira vez)
@@ -35,11 +35,21 @@ Cole o `Code.gs` inteiro de novo e use *Implantar → Gerenciar implantações �
 
 O app abre pelo ícone "Contas", sem a barra do navegador.
 
-## Como o app funciona (Fase 2)
+## Como o app funciona (Fases 2 e 3)
 
 - Na primeira abertura, pede o endereço (URL `/exec`) e a chave.
-- O check-in abre sozinho 1 vez por dia. "Agora não" adia até amanhã (com `toda_vez` na Config, só pula aquela abertura); "Atualizar saldo de outubro" (na tela Mês) abre à mão.
+- **Barra inferior:** Mês · Posso comprar? · Ajustes (rotas `#mes`, `#comprar`, `#ajustes`). Check-in e revisão abrem sem a barra.
+- O check-in abre sozinho 1 vez por dia (ajustável em Ajustes). "Agora não" adia até amanhã (com "Toda vez", só pula aquela abertura); "Atualizar saldo de outubro" (na tela Mês) abre à mão.
 - A tela Mês tem ‹ › para trocar de mês e "Próximos meses" no mês atual. Tocar no valor edita; "Usar o valor padrão" aparece quando a conta tem padrão.
+- **Posso comprar?:** informe a parcela e a quantidade (1x a 24x) e toque em "Ver". O app responde se pode ou não, com a sobra mês a mês antes e depois da compra.
+- **Revisão semanal** (`#revisao`, botão "Revisar valores" na tela Mês): uma pergunta por vez, só sobre o mês que vem. Cada resposta é gravada na hora; a data da última revisão (`lastReviewAt`) só é gravada ao terminar. No fim mostra a sobra antes e depois.
+- **Lembrete:** a tela Mês mostra uma faixa com "Revisar agora" quando faz 7 dias ou mais sem revisar, ou quando nunca houve revisão.
+- **Ajustes:**
+  - Entradas e Contas em listas separadas; ↑ e ↓ reordenam dentro do mesmo tipo.
+  - "Nova conta", tocar na conta para editar, "Arquivar" (o histórico continua guardado) e "Reativar" em "Arquivadas".
+  - Frequência do check-in: "Toda vez", "1x por dia" ou "1x por semana".
+  - Próximos meses: de 1 a 12, vale também para o Posso comprar?.
+  - "Trocar planilha" apaga do aparelho o endereço, a chave, os dados em cache e as gravações ainda não enviadas, e volta à configuração.
 - Estados de gravação: "Salvando…" e "Sem internet, vou tentar de novo".
 
 ## Painel de desenvolvimento (`dev.html`)
@@ -71,6 +81,21 @@ No celular, com a planilha de teste:
 5. Edite o Nubank do mês para **1.000,00**: a sobra vai para **R$ 750,00**.
 6. Toque em *Atualizar saldo de outubro*, informe um saldo menor e confirme: aparece "Sua sobra … caiu …".
 7. Modo avião, edite um valor: aparece "Sem internet, vou tentar de novo". Com a rede de volta, a mensagem some.
+
+## Roteiro de conferência da Fase 3
+
+No celular, com a planilha de teste (não precisa implantar o backend de novo):
+
+1. Abra o app e navegue pela barra: Mês, Posso comprar?, Ajustes e de volta ao Mês.
+2. Em Posso comprar?, teste um caso que pode (parcela pequena) e um que não pode (parcela maior que a sobra de algum mês). Confira os números com a sobra dos próximos meses na tela Mês.
+3. Toque em "Revisar valores" na tela Mês, mude o valor de uma fatura e termine. Confira o antes e o depois no fim e na tela Mês.
+4. Force o lembrete (veja abaixo), reabra o app e toque em "Revisar agora".
+5. Em Ajustes: crie uma conta (ex.: "Farmácia", R$ 80,00), suba com ↑, arquive e reative. Mude a frequência do check-in e a quantidade de meses e veja o efeito em Mês e "Próximos meses".
+6. "Trocar planilha" só se quiser testar: ele vai pedir URL e chave de novo.
+
+### Como forçar o lembrete
+
+Na aba `Config` da planilha de teste, apague o valor da chave `ultima_revisao` (sem revisão nenhuma o lembrete aparece) ou digite uma data antiga em ISO, por exemplo `2026-09-20T12:00:00Z`. Reabra o app.
 
 ## Abas e colunas
 
