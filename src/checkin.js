@@ -2,7 +2,7 @@
 // Módulo puro: sem DOM e sem relógio; `now` vem por parâmetro. `at` é ISO (UTC);
 // para comparar dias, usa a data local do aparelho.
 
-import { monthOf, currentStatus, monthFlags } from './forecast.js';
+import { monthOf, currentStatus, monthFlags, effectiveAmount, monthTotals } from './forecast.js';
 import { formatMoney } from './money.js';
 import { monthName } from './month-view.js';
 
@@ -94,40 +94,67 @@ export function buildCheckin(data, now, { balance, billsPaid, incomeReceived }) 
   return checkin;
 }
 
-// Check-in gerado pelo switch da tela Mês: muda só `field` ('billsPaid' ou
-// 'incomeReceived') e copia a outra marcação do último check-in do mês.
-// Só vale com check-in no mês; sem ele a tela vai para o "Atualizar saldo".
-export function buildToggle(data, now, { field, value, balance }) {
+// Switch com um toque da tela Mês (plans/phase-4.md, T4): passa o dinheiro de
+// "Falta receber"/"Falta pagar" para "Na conta" e nunca muda a sobra.
+// `field` é 'incomeReceived' (contas income) ou 'billsPaid' (contas expense).
+// Devolve { entries, checkin, total }:
+// - entries: ao ligar, as contas do tipo com valor estimado no mês viram lançamentos
+//   { accountId, month, amount }; ao desligar, [] (os lançamentos ficam);
+// - checkin: saldo do último check-in do mês ± total, a outra marcação copiada;
+// - total: soma dos valores efetivos do tipo no mês (para o `toggleNotice`).
+// Sem check-in no mês lança Error: a tela deve abrir o "Atualizar saldo".
+export function buildToggle(data, now, { field, value }) {
   if (field !== 'billsPaid' && field !== 'incomeReceived') {
     throw new Error(`field inválido: ${field}`);
   }
   const month = monthOf(now);
-  const flags = monthFlags(data, now);
+  const last = lastOf(ofMonth(data, month));
+  if (!last) throw new Error(`sem check-in em ${month}`);
+
+  const type = field === 'incomeReceived' ? 'income' : 'expense';
+  const on = value === true;
+  const entries = [];
+  if (on) {
+    for (const account of data.accounts || []) {
+      if (account.type !== type) continue;
+      const { amount, estimated } = effectiveAmount(account, month, data.entries);
+      if (estimated) entries.push({ accountId: account.id, month, amount });
+    }
+  }
+  const withEntries = { ...data, entries: [...(data.entries || []), ...entries] };
+  const totals = monthTotals(withEntries, month);
+  const total = type === 'income' ? totals.income : totals.expense;
+  // Recebi soma na conta; Paguei tira. Desligar faz o contrário.
+  const sign = (type === 'income') === on ? 1 : -1;
+
   const checkin = {
     at: now.toISOString(),
     month,
-    balance,
-    billsPaid: flags.billsPaid,
-    incomeReceived: flags.incomeReceived,
+    balance: last.balance + sign * total,
+    billsPaid: last.billsPaid === true,
+    incomeReceived: last.incomeReceived === true,
     projectedBalance: 0,
   };
-  checkin[field] = value === true;
-  const next = { ...data, checkins: [...(data.checkins || []), checkin] };
+  checkin[field] = on;
+  const next = { ...withEntries, checkins: [...(data.checkins || []), checkin] };
   checkin.projectedBalance = currentStatus(next, now).endOfMonth;
-  return checkin;
+  return { entries, checkin, total };
 }
 
-// Textos do diálogo do switch.
-export function toggleText(field, value, month) {
+// Confirmação curta depois do toque (sem diálogo); null com total 0.
+// `total` em centavos; o sinal vem do texto, não do número.
+export function toggleNotice(field, value, total, month) {
+  if (!total) return null;
   const name = monthName(month);
-  if (field === 'billsPaid') {
+  const money = formatMoney(Math.abs(total));
+  if (field === 'incomeReceived') {
     return value
-      ? { title: `Contas de ${name} pagas`, label: 'Quanto ficou na conta?' }
-      : { title: `Contas de ${name} ainda não pagas`, label: 'Quanto tem na conta agora?' };
+      ? `Salário de ${name} somado: + ${money} na conta.`
+      : `Salário de ${name} tirado: − ${money} na conta.`;
   }
   return value
-    ? { title: `Salário de ${name} recebido`, label: 'Quanto tem na conta agora?' }
-    : { title: `Salário de ${name} ainda não caiu`, label: 'Quanto tem na conta agora?' };
+    ? `Contas de ${name} descontadas: − ${money} na conta.`
+    : `Contas de ${name} devolvidas: + ${money} na conta.`;
 }
 
 // Aviso educativo: a sobra caiu desde o check-in anterior do mesmo mês?
