@@ -1,6 +1,6 @@
 # Especificação de produto — App de Contas
 
-Fonte de verdade das decisões de produto para as Fases 1 a 3. Mudou alguma regra? Atualize este arquivo antes do código.
+Fonte de verdade das decisões de produto para as Fases 1 a 4. Mudou alguma regra? Atualize este arquivo antes do código.
 
 ## Problema
 
@@ -43,7 +43,7 @@ Salário de outubro:  [Já caiu]    [Ainda não]
 
 - **Quando abre sozinha:** sem nenhum check-in, sempre (é a base do cálculo). Com "toda vez", a cada abertura do app. Com "1x por dia", se o último check-in não foi hoje. Com "1x por semana", se faz 7 dias ou mais do último. O app confere ao abrir e quando volta para a frente da tela. Se já existe check-in, ela pode tocar em "Agora não", e o app só pergunta de novo no dia seguinte (com "toda vez", na próxima abertura do app).
 - "Na conta" vem preenchido com o último saldo informado, e ela confirma ou altera. É o saldo em conta, sem desconto nenhum. Sem check-in anterior, o campo vem vazio e é obrigatório.
-- Depois que ela responde "Já paguei" ou "Já caiu" num mês, aquela linha some até o mês seguinte, e os próximos check-ins do mês gravam a resposta "sim" sozinhos.
+- Depois que ela responde "Já paguei" ou "Já caiu" num mês, aquela linha some enquanto a última resposta do mês for "sim", e os próximos check-ins do mês gravam "sim" sozinhos. Se ela desligar o switch correspondente na tela Mês, a linha volta, marcada "Ainda não".
 - No **primeiro check-in do mês**, as linhas vêm sem nada marcado e "Confirmar" só libera depois que ela responde as duas. Nos seguintes do mesmo mês, vêm marcadas com a última resposta ("Ainda não"), para confirmar com um toque.
 - Enquanto a resposta for "Ainda não", o app considera **todas** as contas do mês pendentes. É um erro conservador, que mostra menos sobra, e foi aceito de propósito.
 - "Salário" cobre todas as receitas do mês.
@@ -56,6 +56,7 @@ A base é o último check-in: saldo `S`, mês `A`, `contas_pagas` e `salario_cai
 - Sobra no fim do mês A = `S + (salario_caiu ? 0 : R(A)) − (contas_pagas ? 0 : D(A))`
 - Para k ≥ 1: `Sobra(A+k) = Sobra(A+k−1) + R(A+k) − D(A+k)`
 - Falta pagar no mês atual = `contas_pagas ? 0 : D(A)`
+- Falta receber no mês atual = `salario_caiu ? 0 : R(A)`
 - Se o último check-in é de um mês anterior ao atual, a projeção segue a mesma regra a partir de A, e o mês atual entra inteiro (Falta pagar = D do mês atual).
 - Sem nenhum check-in, a base é S = 0, A = mês atual e nada pago. O app pede o primeiro check-in.
 
@@ -103,11 +104,12 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
 - **Mês:**
   - Navegação ‹ outubro de 2026 ›, de 12 meses para trás até 12 meses para frente do mês atual.
   - No topo, conforme o mês:
-    - mês atual: Na conta, Falta pagar e Sobra no fim do mês;
+    - mês atual: Na conta, Falta receber, Falta pagar e Sobra no fim do mês (com check-in no mês, a conta fecha na tela: na conta + falta receber − falta pagar = sobra);
     - mês futuro: Entra, Sai e Sobra prevista no fim do mês;
     - mês passado: Entrou e Saiu, sem sobra.
   - Bloco "Próximos meses" (só no mês atual) com a sobra acumulada dos próximos H meses, com negativos em vermelho. Tocar num mês abre esse mês.
-  - Lista do mês em duas partes, "Entradas" e "Contas", na ordem das contas, com nome e valor. Valor padrão aparece em cinza com a palavra "estimado"; sem valor, aparece "—". Conta arquivada só aparece se tiver lançamento no mês. Não há caixas de marcar.
+  - Lista do mês em duas partes, "Entradas" e "Contas", na ordem das contas, com nome e valor. Valor padrão aparece em cinza com a palavra "estimado"; sem valor, aparece "—". Conta arquivada só aparece se tiver lançamento no mês. Não há caixas de marcar por conta.
+  - No mês atual, o título de cada parte tem um switch: "Entradas · Recebi" e "Contas · Paguei". Eles mostram a resposta do último check-in do mês (desligados sem check-in no mês). Mudar um switch sempre pede o saldo junto: com check-in no mês, um diálogo curto ("Contas de outubro pagas — Quanto ficou na conta?", já preenchido com o último saldo) grava um check-in com a marcação nova; sem check-in no mês, abre o "Atualizar saldo" com a resposta já marcada. Desligar é o jeito de desfazer um toque errado.
   - Um toque no valor abre a edição. Se a conta tem valor padrão, há também "Usar o valor padrão", que apaga o lançamento do mês.
   - Rodapé: o botão "Atualizar saldo de outubro" (com o nome do mês corrente) aparece em todos os meses e sempre atualiza o saldo do mês corrente, mesmo quando um mês passado ou futuro está na tela. Ao lado, "Revisar valores" abre a revisão semanal.
   - No topo, a faixa do lembrete, quando for a hora.
@@ -138,8 +140,9 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
 | 1 — dados e regras | Abas, API, cache local com fila de gravação, cálculo com testes. Plano: `plans/phase-1.md` |
 | 2 — substitui a planilha | Telas Check-in e Mês (com Próximos meses), app instalável. Plano: `plans/phase-2.md` |
 | 3 | Posso comprar?, revisão semanal guiada, Ajustes, barra inferior e lembrete. Plano: `plans/phase-3.md` |
+| 4 — usabilidade | "Falta receber" no cartão do mês e switches "Recebi"/"Paguei" na tela Mês. Plano: `plans/phase-4.md` |
 | Entrega | Planilha da esposa, link de configuração e carga real |
 
 ## Fora do escopo
 
-Lançamento compra a compra, categorias, marcação de pago, push, gravar compras simuladas e importação de histórico.
+Lançamento compra a compra, categorias, marcação de pago conta a conta, push, gravar compras simuladas e importação de histórico.
