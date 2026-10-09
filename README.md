@@ -48,6 +48,57 @@ O app abre pelo ícone "Contas", sem a barra do navegador.
   - Aparece uma confirmação curta, que some com um toque (ex.: "Salário de outubro somado: + R$ 3.000,00 na conta.").
   - Sem check-in no mês, abre o "Atualizar saldo" (`#checkin/recebi` ou `#checkin/paguei`) com a resposta já marcada.
   - Se o valor real vier diferente do estimado, o "Atualizar saldo" corrige o "Na conta".
+- **Posso comprar?:** informe a parcela e a quantidade (1x a 24x) e toque em "Ver". O app responde se pode ou não, com a sobra mês a mês antes e depois da compra.
+- **Revisão semanal** (`#revisao`, botão "Revisar valores" na tela Mês): uma pergunta por vez, só sobre o mês que vem. Cada resposta é gravada na hora; a data da última revisão (`lastReviewAt`) só é gravada ao terminar. No fim mostra a sobra antes e depois.
+- **Lembrete:** a tela Mês mostra uma faixa com "Revisar agora" quando faz 7 dias ou mais sem revisar, ou quando nunca houve revisão.
+- **Ajustes:**
+  - Entradas e Contas em listas separadas; ↑ e ↓ reordenam dentro do mesmo tipo.
+  - "Nova conta", tocar na conta para editar, "Arquivar" (o histórico continua guardado) e "Reativar" em "Arquivadas".
+  - Frequência do check-in: "Toda vez", "1x por dia" ou "1x por semana".
+  - Próximos meses: de 1 a 12, vale também para o Posso comprar?.
+  - "Trocar planilha" apaga do aparelho o endereço, a chave, os dados em cache e as gravações ainda não enviadas, e volta à configuração.
+- Estados de gravação: "Salvando…" e "Sem internet, vou tentar de novo".
+
+## Painel de desenvolvimento (`dev.html`)
+
+Na primeira abertura, informe a URL `/exec` e a chave e toque em *Salvar configuração* (ficam só no `localStorage`, compartilhado com o app).
+
+- **Estado da fila** (sempre visível): "Tudo salvo", "Enviando…" ou "N gravação(ões) pendente(s)". Em erro de chave ou de dados, aparecem *Tentar de novo* e *Descartar pendências*.
+- **Testar conexão:** `ping`, mostra a latência.
+- **Carregar dados:** busca tudo no servidor (reaplicando a fila pendente).
+- **Ver previsão:** mostra o mês atual (na conta, falta pagar, sobra no fim do mês) e a sobra acumulada dos próximos 3 meses.
+- **Regravar ajustes:** grava os ajustes atuais de novo (idempotente); serve para testar a fila.
+- **Gerar massa de teste / Apagar tudo:** só aparecem na planilha de teste.
+
+Roteiro de conferência do painel (Fase 1):
+
+1. *Gerar massa de teste*, depois *Ver previsão*.
+2. Conferir com a tabela da massa: sobra no fim do mês atual **R$ 850**; próximos meses **R$ 1.600, R$ 1.700 e R$ 50**; meses seguintes da massa **R$ 400 e R$ 1.250**.
+3. Modo avião, *Regravar ajustes*: deve mostrar 1 pendente.
+4. Rede de volta: a fila esvazia e volta para "Tudo salvo".
+
+## Roteiro de conferência da Fase 2
+
+No celular, com a planilha de teste:
+
+1. Implante o `Code.gs` atual (*Gerenciar implantações → Editar → Nova versão*).
+2. No `dev.html`, toque em *Apagar tudo* e depois *Gerar massa de teste* (assim a `Config` fica com o check-in diário).
+3. Abra o app, adicione à tela inicial e abra pelo ícone.
+4. A tela Mês mostra Sobra **R$ 850,00** e, em Próximos meses, **R$ 1.600,00 / R$ 1.700,00 / R$ 50,00**.
+5. Edite o Nubank do mês para **1.000,00**: a sobra vai para **R$ 750,00**.
+6. Toque em *Atualizar saldo de outubro*, informe um saldo menor e confirme: aparece "Sua sobra … caiu …".
+7. Modo avião, edite um valor: aparece "Sem internet, vou tentar de novo". Com a rede de volta, a mensagem some.
+
+## Roteiro de conferência da Fase 3
+
+No celular, com a planilha de teste (não precisa implantar o backend de novo):
+
+1. Abra o app e navegue pela barra: Mês, Posso comprar?, Ajustes e de volta ao Mês.
+2. Em Posso comprar?, teste um caso que pode (parcela pequena) e um que não pode (parcela maior que a sobra de algum mês). Confira os números com a sobra dos próximos meses na tela Mês.
+3. Toque em "Revisar valores" na tela Mês, mude o valor de uma fatura e termine. Confira o antes e o depois no fim e na tela Mês.
+4. Force o lembrete (veja abaixo), reabra o app e toque em "Revisar agora".
+5. Em Ajustes: crie uma conta (ex.: "Farmácia", R$ 80,00), suba com ↑, arquive e reative. Mude a frequência do check-in e a quantidade de meses e veja o efeito em Mês e "Próximos meses".
+6. "Trocar planilha" só se quiser testar: ele vai pedir URL e chave de novo.
 
 ### Como forçar o lembrete
 
