@@ -61,6 +61,10 @@ export function mount(el, ctx) {
     built = true;
     const form = checkinForm(data, ctx.now());
     const hasPrevious = (data.checkins || []).length > 0;
+    // Vindo de um switch da tela Mês (#checkin/paguei ou #checkin/recebi), aquela linha já vem no "sim".
+    const preset = ctx.params && ctx.params.preset;
+    if (preset === 'billsPaid' && form.bills.show) form.bills.preset = true;
+    if (preset === 'incomeReceived' && form.income.show) form.income.preset = true;
     const answers = {
       balance: form.balance,
       billsPaid: form.bills.preset === null ? undefined : form.bills.preset,
