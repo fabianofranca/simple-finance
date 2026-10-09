@@ -190,3 +190,25 @@ test('limites de ±12 meses funcionam como passado e futuro', () => {
   assert.equal(last.kind, 'future');
   assert.equal(last.month, '2027-10');
 });
+
+test('mês atual traz toReceive e flags; tela do Fabiano sem check-in', () => {
+  const accounts = [{ id: 's', name: 'Salário', type: 'income', defaultAmount: reais(1000), order: 1, active: true }];
+  const v = monthView({ accounts, entries: [], checkins: [], settings: {} }, today, '2026-10');
+  assert.equal(v.balance, 0);
+  assert.equal(v.toReceive, reais(1000));
+  assert.equal(v.toPay, 0);
+  assert.equal(v.endOfMonth, reais(1000));
+  assert.deepEqual(v.flags, { hasCheckin: false, billsPaid: false, incomeReceived: false });
+
+  const seed = monthView(seedData(), today, '2026-10');
+  assert.equal(seed.toReceive, 0);
+  assert.deepEqual(seed.flags, { hasCheckin: true, billsPaid: false, incomeReceived: true });
+});
+
+test('mês passado e futuro não têm toReceive nem flags', () => {
+  for (const month of ['2026-09', '2026-12']) {
+    const v = monthView(seedData(), today, month);
+    assert.equal('toReceive' in v, false);
+    assert.equal('flags' in v, false);
+  }
+});
