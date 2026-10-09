@@ -7,6 +7,9 @@ import {
   canConfirm,
   buildCheckin,
   dropNotice,
+  monthFlags,
+  buildToggle,
+  toggleText,
 } from '../src/checkin.js';
 import { currentStatus } from '../src/forecast.js';
 
@@ -228,4 +231,64 @@ test('dropNotice com o payload de buildCheckin', () => {
   assert.equal(c.projectedBalance, reais(1380));
   const notice = dropNotice(d, c);
   assert.equal(notice.text, 'Sua sobra de outubro caiu R$ 120,00 desde 03/10');
+});
+
+test('buildToggle liga billsPaid mantendo incomeReceived do último check-in do mês', () => {
+  const d = data({
+    accounts,
+    checkins: [ck(local(2026, 10, 3), '2026-10', { balance: reais(2000), incomeReceived: true })],
+  });
+  const now = local(2026, 10, 10, 9);
+  const c = buildToggle(d, now, { field: 'billsPaid', value: true, balance: reais(1000) });
+  assert.equal(c.at, now.toISOString());
+  assert.equal(c.month, '2026-10');
+  assert.equal(c.balance, reais(1000));
+  assert.equal(c.billsPaid, true);
+  assert.equal(c.incomeReceived, true);
+  assert.equal(c.projectedBalance, reais(1000));
+  assert.equal(c.projectedBalance, currentStatus({ ...d, checkins: [...d.checkins, c] }, now).endOfMonth);
+});
+
+test('buildToggle com field inválido lança', () => {
+  const d = data({ accounts, checkins: [ck(local(2026, 10, 3), '2026-10')] });
+  assert.throws(() => buildToggle(d, local(2026, 10, 10), { field: 'x', value: true, balance: 0 }), Error);
+});
+
+test('desfazer: ligar e desligar billsPaid mostra a linha de novo com "Ainda não"', () => {
+  const now = local(2026, 10, 10, 9);
+  let d = data({ accounts, checkins: [ck(local(2026, 10, 3), '2026-10', { balance: reais(2000), incomeReceived: true })] });
+  const on = buildToggle(d, now, { field: 'billsPaid', value: true, balance: reais(1000) });
+  d = { ...d, checkins: [...d.checkins, on] };
+  assert.deepEqual(checkinForm(d, local(2026, 10, 10, 10)).bills, { show: false, preset: true });
+  // Linha escondida continua gravando true.
+  const hidden = buildCheckin(d, local(2026, 10, 10, 10), { balance: reais(1000), billsPaid: false, incomeReceived: false });
+  assert.equal(hidden.billsPaid, true);
+
+  const off = buildToggle(d, local(2026, 10, 10, 11), { field: 'billsPaid', value: false, balance: reais(1000) });
+  d = { ...d, checkins: [...d.checkins, off] };
+  assert.deepEqual(checkinForm(d, local(2026, 10, 10, 12)).bills, { show: true, preset: false });
+});
+
+test('monthFlags: sem check-in no mês (inclusive só do mês anterior) devolve tudo false', () => {
+  const none = { hasCheckin: false, billsPaid: false, incomeReceived: false };
+  assert.deepEqual(monthFlags(data(), local(2026, 10, 10)), none);
+  const d = data({ checkins: [ck(local(2026, 9, 20), '2026-09', { billsPaid: true, incomeReceived: true })] });
+  assert.deepEqual(monthFlags(d, local(2026, 10, 10)), none);
+});
+
+test('monthFlags usa o último check-in do mês por `at`, não o último da lista', () => {
+  const d = data({
+    checkins: [
+      ck(local(2026, 10, 8), '2026-10', { billsPaid: true, incomeReceived: false }),
+      ck(local(2026, 10, 3), '2026-10', { billsPaid: false, incomeReceived: true }),
+    ],
+  });
+  assert.deepEqual(monthFlags(d, local(2026, 10, 10)), { hasCheckin: true, billsPaid: true, incomeReceived: false });
+});
+
+test('toggleText: os quatro textos do diálogo', () => {
+  assert.deepEqual(toggleText('billsPaid', true, '2026-10'), { title: 'Contas de outubro pagas', label: 'Quanto ficou na conta?' });
+  assert.deepEqual(toggleText('billsPaid', false, '2026-10'), { title: 'Contas de outubro ainda não pagas', label: 'Quanto tem na conta agora?' });
+  assert.deepEqual(toggleText('incomeReceived', true, '2026-10'), { title: 'Salário de outubro recebido', label: 'Quanto tem na conta agora?' });
+  assert.deepEqual(toggleText('incomeReceived', false, '2026-10'), { title: 'Salário de outubro ainda não caiu', label: 'Quanto tem na conta agora?' });
 });

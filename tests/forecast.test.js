@@ -74,7 +74,7 @@ test('caso 2: "Ainda não" desconta D(A); "Já paguei" não desconta e Falta pag
   const accounts = [income('salario', reais(1500)), expense('contas', reais(1000))];
   const pending = data({ accounts, checkins: [checkin('2026-10', reais(500), { incomeReceived: true })] });
   assert.deepEqual(currentStatus(pending, today), {
-    month: '2026-10', balance: reais(500), toPay: reais(1000), endOfMonth: reais(-500),
+    month: '2026-10', balance: reais(500), toReceive: 0, toPay: reais(1000), endOfMonth: reais(-500),
   });
 
   const paid = data({
@@ -82,7 +82,7 @@ test('caso 2: "Ainda não" desconta D(A); "Já paguei" não desconta e Falta pag
     checkins: [checkin('2026-10', reais(500), { incomeReceived: true, billsPaid: true })],
   });
   assert.deepEqual(currentStatus(paid, today), {
-    month: '2026-10', balance: reais(500), toPay: 0, endOfMonth: reais(500),
+    month: '2026-10', balance: reais(500), toReceive: 0, toPay: 0, endOfMonth: reais(500),
   });
 });
 
@@ -130,13 +130,13 @@ test('caso 5: check-in de mês anterior atravessa os meses até hoje; sem check-
   });
   // Ago: 1.000; Set: +500; Out entra inteiro: +500.
   assert.deepEqual(currentStatus(old, today), {
-    month: '2026-10', balance: reais(1000), toPay: reais(1000), endOfMonth: reais(2000),
+    month: '2026-10', balance: reais(1000), toReceive: reais(1500), toPay: reais(1000), endOfMonth: reais(2000),
   });
   assert.equal(project(old, today, 1)[0].balance, reais(2500));
 
   const none = data({ accounts });
   assert.deepEqual(currentStatus(none, today), {
-    month: '2026-10', balance: 0, toPay: reais(1000), endOfMonth: reais(500),
+    month: '2026-10', balance: 0, toReceive: reais(1500), toPay: reais(1000), endOfMonth: reais(500),
   });
   assert.deepEqual(project(none, today, 2).map((p) => p.balance), [reais(1000), reais(1500)]);
 });
@@ -211,5 +211,29 @@ test('canBuy rejeita parcela e quantidade inválidas', () => {
   for (const bad of [0, -100, 1.5, '100', null, undefined, NaN]) {
     assert.throws(() => canBuy(d, today, { installment: bad, count: 1 }), RangeError);
     assert.throws(() => canBuy(d, today, { installment: 100, count: bad }), RangeError);
+  }
+});
+
+test('Falta receber: tela do Fabiano, sem check-in e só o salário padrão', () => {
+  const d = data({ accounts: [income('salario', reais(1000))] });
+  assert.deepEqual(currentStatus(d, today), {
+    month: '2026-10', balance: 0, toReceive: reais(1000), toPay: 0, endOfMonth: reais(1000),
+  });
+});
+
+test('Falta receber: com check-in no mês, salário recebido zera e a conta fecha nas 4 combinações', () => {
+  const accounts = [income('salario', reais(3000)), expense('contas', reais(2000))];
+  const received = data({ accounts, checkins: [checkin('2026-10', reais(3000), { incomeReceived: true })] });
+  const s = currentStatus(received, today);
+  assert.equal(s.toReceive, 0);
+  assert.equal(s.toPay, reais(2000));
+  assert.equal(s.endOfMonth, reais(1000));
+
+  for (const billsPaid of [false, true]) {
+    for (const incomeReceived of [false, true]) {
+      const d = data({ accounts, checkins: [checkin('2026-10', reais(3000), { billsPaid, incomeReceived })] });
+      const x = currentStatus(d, today);
+      assert.equal(x.balance + x.toReceive - x.toPay, x.endOfMonth, `${billsPaid}/${incomeReceived}`);
+    }
   }
 });

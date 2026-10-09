@@ -78,13 +78,28 @@ function endBalances(data, base, to, extra = () => 0) {
   return result;
 }
 
-// Topo da tela Mês: Na conta, Falta pagar e Sobra no fim do mês.
+// Marcações do último check-in (maior `at`) do mês de `now`.
+// Sem check-in nesse mês, tudo `false`. Mora aqui (e não no checkin.js) para a
+// tela Mês usar sem import circular; o checkin.js reexporta.
+export function monthFlags(data, now) {
+  const month = monthOf(now);
+  let last = null;
+  for (const c of data.checkins || []) {
+    if (c.month === month && (!last || c.at > last.at)) last = c;
+  }
+  if (!last) return { hasCheckin: false, billsPaid: false, incomeReceived: false };
+  return { hasCheckin: true, billsPaid: last.billsPaid === true, incomeReceived: last.incomeReceived === true };
+}
+
+// Topo da tela Mês: Na conta, Falta receber, Falta pagar e Sobra no fim do mês.
 export function currentStatus(data, today) {
   const base = baseCheckin(data, today);
   const month = currentMonth(base, today);
   const ends = endBalances(data, base, month);
-  const toPay = base.month === month && base.billsPaid ? 0 : monthTotals(data, month).expense;
-  return { month, balance: base.balance, toPay, endOfMonth: ends.get(month) };
+  const totals = monthTotals(data, month);
+  const toReceive = base.month === month && base.incomeReceived ? 0 : totals.income;
+  const toPay = base.month === month && base.billsPaid ? 0 : totals.expense;
+  return { month, balance: base.balance, toReceive, toPay, endOfMonth: ends.get(month) };
 }
 
 // Próximos `months` meses depois do mês corrente, com a sobra acumulada.

@@ -2,9 +2,11 @@
 // Módulo puro: sem DOM e sem relógio; `now` vem por parâmetro. `at` é ISO (UTC);
 // para comparar dias, usa a data local do aparelho.
 
-import { monthOf, currentStatus } from './forecast.js';
+import { monthOf, currentStatus, monthFlags } from './forecast.js';
 import { formatMoney } from './money.js';
 import { monthName } from './month-view.js';
+
+export { monthFlags };
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -45,12 +47,13 @@ export function shouldOpenCheckin(data, now, snoozeDay = null) {
   return localDay(new Date(last.at)) !== localDay(now);
 }
 
-// Uma linha (contas ou salário): some depois de um "sim" no mês;
-// no primeiro check-in do mês vem sem seleção, depois com a última resposta.
+// Uma linha (contas ou salário) segue o ÚLTIMO check-in do mês:
+// "sim" some a linha; "não" mostra com "Ainda não" (é o jeito de desfazer);
+// sem check-in no mês, vem sem seleção.
 function lineOf(list, field) {
-  if (list.some((c) => c[field] === true)) return { show: false, preset: true };
   if (!list.length) return { show: true, preset: null };
-  return { show: true, preset: Boolean(list[list.length - 1][field]) };
+  if (list[list.length - 1][field] === true) return { show: false, preset: true };
+  return { show: true, preset: false };
 }
 
 // Estado inicial da tela de check-in.
@@ -89,6 +92,42 @@ export function buildCheckin(data, now, { balance, billsPaid, incomeReceived }) 
   const next = { ...data, checkins: [...(data.checkins || []), checkin] };
   checkin.projectedBalance = currentStatus(next, now).endOfMonth;
   return checkin;
+}
+
+// Check-in gerado pelo switch da tela Mês: muda só `field` ('billsPaid' ou
+// 'incomeReceived') e copia a outra marcação do último check-in do mês.
+// Só vale com check-in no mês; sem ele a tela vai para o "Atualizar saldo".
+export function buildToggle(data, now, { field, value, balance }) {
+  if (field !== 'billsPaid' && field !== 'incomeReceived') {
+    throw new Error(`field inválido: ${field}`);
+  }
+  const month = monthOf(now);
+  const flags = monthFlags(data, now);
+  const checkin = {
+    at: now.toISOString(),
+    month,
+    balance,
+    billsPaid: flags.billsPaid,
+    incomeReceived: flags.incomeReceived,
+    projectedBalance: 0,
+  };
+  checkin[field] = value === true;
+  const next = { ...data, checkins: [...(data.checkins || []), checkin] };
+  checkin.projectedBalance = currentStatus(next, now).endOfMonth;
+  return checkin;
+}
+
+// Textos do diálogo do switch.
+export function toggleText(field, value, month) {
+  const name = monthName(month);
+  if (field === 'billsPaid') {
+    return value
+      ? { title: `Contas de ${name} pagas`, label: 'Quanto ficou na conta?' }
+      : { title: `Contas de ${name} ainda não pagas`, label: 'Quanto tem na conta agora?' };
+  }
+  return value
+    ? { title: `Salário de ${name} recebido`, label: 'Quanto tem na conta agora?' }
+    : { title: `Salário de ${name} ainda não caiu`, label: 'Quanto tem na conta agora?' };
 }
 
 // Aviso educativo: a sobra caiu desde o check-in anterior do mesmo mês?
