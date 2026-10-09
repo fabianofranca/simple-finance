@@ -68,6 +68,7 @@ export function createStore({ api, storage, timers, onlineTarget } = {}) {
   let attempt = 0;
   let retryTimer = null;
   let epoch = 0; // muda quando a fila é descartada com um envio em andamento
+  let generation = 0; // muda no clear(): uma busca em andamento não pode repor dados antigos
   let refreshing = 0;
   let doneDuringRefresh = [];
   const listeners = new Set();
@@ -172,12 +173,14 @@ export function createStore({ api, storage, timers, onlineTarget } = {}) {
     async refresh() {
       if (!refreshing) doneDuringRefresh = [];
       refreshing++;
+      const myGeneration = generation;
       let res;
       try {
         res = await api.loadAll();
       } finally {
         refreshing--;
       }
+      if (myGeneration !== generation) return data; // cache apagado durante a busca: descarta a resposta
       // reaplica o que saiu da fila durante a busca (o servidor pode não ter
       // visto) e o que ainda está nela
       let next = normalize(res);
@@ -233,6 +236,26 @@ export function createStore({ api, storage, timers, onlineTarget } = {}) {
       persist();
       notify();
       return store.refresh();
+    },
+
+    // Apaga tudo (dados e fila), na memória e no storage, para trocar de planilha.
+    // Não busca nada: quem chama decide quando fazer refresh().
+    clear() {
+      epoch++;
+      generation++;
+      data = null;
+      queue = [];
+      error = null;
+      clearRetry();
+      attempt = 0;
+      doneDuringRefresh = [];
+      try {
+        storage.removeItem(DATA_KEY);
+        storage.removeItem(QUEUE_KEY);
+      } catch {
+        // sem acesso ao storage: já está vazio em memória
+      }
+      notify();
     }
   };
 

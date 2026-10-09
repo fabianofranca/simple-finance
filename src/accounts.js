@@ -39,21 +39,25 @@ export function newAccount({ name, type, defaultAmount } = {}, accounts) {
   };
 }
 
-// Sobe ('up' ou -1) ou desce ('down' ou 1) uma conta ativa.
-// Devolve só as contas alteradas; nas pontas, arquivada ou id desconhecido, [].
+// Sobe ('up' ou -1) ou desce ('down' ou 1) uma conta ativa, dentro das ativas do mesmo tipo
+// (Entradas e Contas são listas separadas na tela). Devolve só as contas alteradas; nas pontas
+// da lista do tipo, arquivada ou id desconhecido, [].
+// A ordem das contas do outro tipo nunca muda.
 export function move(accounts, id, dir) {
   const step = dir === 'up' || dir === -1 ? -1 : dir === 'down' || dir === 1 ? 1 : 0;
-  const list = activeAccounts(accounts);
+  const target = activeAccounts(accounts).find((a) => a.id === id);
+  if (!step || !target) return [];
+  const list = activeAccounts(accounts).filter((a) => a.type === target.type);
   const i = list.findIndex((a) => a.id === id);
   const j = i + step;
-  if (!step || i < 0 || j < 0 || j >= list.length) return [];
+  if (j < 0 || j >= list.length) return [];
 
   const orders = list.map((a) => a.order);
   if (new Set(orders).size === orders.length) {
-    // Ordens distintas: só troca com a vizinha.
+    // Ordens distintas: só troca com a vizinha do mesmo tipo.
     return [{ ...list[i], order: list[j].order }, { ...list[j], order: list[i].order }];
   }
-  // Ordem repetida entre as ativas: troca as posições e renumera 1..n.
+  // Ordem repetida dentro do tipo: troca as posições e renumera só esse grupo, 1..n.
   const swapped = [...list];
   [swapped[i], swapped[j]] = [swapped[j], swapped[i]];
   const before = new Map(list.map((a) => [a.id, a.order]));

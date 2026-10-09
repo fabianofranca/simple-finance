@@ -91,6 +91,55 @@ test('move com order repetido renumera as ativas 1..n', () => {
   assert.equal(changed.some((x) => x.id === 'a'), false);
 });
 
+test('move só troca com contas do mesmo tipo: despesa não troca com receita vizinha', () => {
+  const list = [
+    acc('nubank', 1),
+    acc('inter', 2),
+    acc('salario', 3, true, { type: 'income' }),
+    acc('unha', 4),
+    acc('extra', 5, true, { type: 'income' }),
+  ];
+  // Unha (4) sobe: a vizinha de despesa é a Inter (2), não o Salário (3).
+  assert.deepEqual(move(list, 'unha', 'up'), [acc('unha', 2), acc('inter', 4)]);
+  // Salário (3) desce: a vizinha de receita é o Extra (5), não a Unha (4).
+  assert.deepEqual(move(list, 'salario', 'down'), [
+    acc('salario', 5, true, { type: 'income' }),
+    acc('extra', 3, true, { type: 'income' }),
+  ]);
+});
+
+test('move nas pontas da lista do próprio tipo devolve []', () => {
+  const list = [
+    acc('salario', 1, true, { type: 'income' }),
+    acc('nubank', 2),
+    acc('inter', 3),
+    acc('extra', 4, true, { type: 'income' }),
+  ];
+  // Nubank é a primeira despesa, mesmo com uma receita antes dela.
+  assert.deepEqual(move(list, 'nubank', 'up'), []);
+  assert.deepEqual(move(list, 'inter', 'down'), []);
+  assert.deepEqual(move(list, 'salario', 'up'), []);
+  assert.deepEqual(move(list, 'extra', 'down'), []);
+});
+
+test('move com order repetido renumera só o grupo do tipo e não mexe no outro', () => {
+  const list = [
+    acc('a', 1),
+    acc('b', 1),
+    acc('s1', 1, true, { type: 'income' }),
+    acc('s2', 1, true, { type: 'income' }),
+    acc('c', 1),
+  ];
+  // Despesas (empate pelo nome): a, b, c. C sobe: a, c, b.
+  const changed = move(list, 'c', 'up');
+  assert.deepEqual(changed, [acc('c', 2), acc('b', 3)]);
+  assert.equal(changed.some((x) => x.type === 'income'), false);
+  // Aplicando, a ordem relativa das receitas continua s1, s2 e a das despesas é a, c, b.
+  const applied = list.map((x) => changed.find((c) => c.id === x.id) || x);
+  assert.deepEqual(activeAccounts(applied).filter((x) => x.type === 'expense').map((x) => x.id), ['a', 'c', 'b']);
+  assert.deepEqual(activeAccounts(applied).filter((x) => x.type === 'income').map((x) => x.id), ['s1', 's2']);
+});
+
 test('archive e reactivate trocam active e mantêm o order', () => {
   const a = acc('nubank', 4);
   assert.deepEqual(archive(a), { ...a, active: false });
