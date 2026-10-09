@@ -32,6 +32,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `plans/phase-2.md`: plano da Fase 2.
 - `plans/phase-3.md`: plano da Fase 3.
 - `plans/phase-4.md`: plano da Fase 4 (usabilidade).
+- `plans/delivery.md`: plano da Entrega.
 - `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `ping`, e `seed`/`reset` só com `ambiente = teste`. Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
 - `index.html`: o app (casca, faixa de aviso, manifest e metas de iOS).
 - `dev.html` + `src/dev.js` + `styles.css`: painel de desenvolvimento (fora do app; mesma config e cache).
@@ -61,8 +62,9 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - [x] Plano da Fase 3 escrito (plans/phase-3.md)
 - [x] Fase 3 executada: Posso comprar?, revisão semanal guiada, Ajustes, barra inferior e lembrete; roteiro validado no celular
 - [x] Plano da Fase 4 escrito (plans/phase-4.md)
-- [ ] Fase 4: usabilidade ("Falta receber" e switches "Recebi"/"Paguei" na tela Mês)
-- [ ] Entrega: planilha da esposa, link de configuração e carga real
+- [x] Fase 4 executada: "Falta receber", switches "Recebi"/"Paguei" com um toque e campos que selecionam o valor; validado no celular
+- [x] Plano da Entrega escrito (plans/delivery.md)
+- [ ] Entrega: planilha da esposa, link de configuração, primeiro uso e carga real
 
 ## Como trabalhar neste repo
 - **Fases:** cada fase tem seu próprio plano em Markdown, aprovado pelo Fabiano antes de executar.
