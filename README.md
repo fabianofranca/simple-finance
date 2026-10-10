@@ -168,9 +168,9 @@ No celular dela, junto com o Fabiano:
 1. Abra o link.
 2. Instale o app. **Android:** menu do Chrome → "Instalar app". **iPhone:** Compartilhar → "Adicionar à Tela de Início", abra pelo ícone e **cole o link** na tela de configuração (o app instalado tem armazenamento separado do Safari).
 3. Toque em "Cadastrar contas" e cadastre o Salário (Entrada, com valor padrão) e as contas da casa. Recorrentes, como Unha, levam valor padrão; faturas ficam sem padrão.
-4. Volte ao Mês: o primeiro check-in pede o saldo de hoje e se as contas e o salário do mês já foram pagos e recebidos.
+4. Volte ao Mês: o primeiro check-in pede o saldo de hoje.
 5. Preencha as faturas do mês atual e as dos próximos meses que ela já souber (›).
-6. Ligue "Recebi" e "Paguei" se for o caso e confira a sobra e os Próximos meses com ela.
+6. Marque o check das contas já pagas e das entradas já recebidas no mês. Depois toque em "Atualizar saldo de outubro" e confirme de novo o saldo real do banco: o que já tinha saído antes do primeiro saldo seria descontado duas vezes sem esse passo. Confira a sobra e os Próximos meses com ela.
 7. Faça um "Posso comprar?" de exemplo.
 8. Em Ajustes, escolha a frequência do check-in.
 
