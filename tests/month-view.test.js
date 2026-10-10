@@ -30,12 +30,17 @@ function seedData() {
       if (v !== null) entries.push({ accountId, month: MONTHS[i], amount: reais(v), updatedAt: '2026-10-01T00:00:00.000Z' });
     });
   }
+  // Salário de outubro já recebido: marcado antes do check-in, que já inclui o dinheiro.
+  entries.push({
+    accountId: 'salario', month: '2026-10', amount: reais(3000),
+    updatedAt: '2026-10-01T00:00:00.000Z', paidAt: new Date(2026, 9, 1, 8).toISOString(),
+  });
   const checkins = [{
     at: new Date(2026, 9, 1, 9).toISOString(),
     month: '2026-10',
     balance: reais(3000),
     billsPaid: false,
-    incomeReceived: true,
+    incomeReceived: false,
     projectedBalance: reais(850),
   }];
   return { accounts, entries, checkins, settings: { checkinFrequency: 'daily', horizonMonths: 3 } };
@@ -79,14 +84,15 @@ test('mês atual com a massa do seed: sobra 850 e próximos 1.600, 1.700 e 50', 
   assert.equal(v.income, undefined);
 
   assert.deepEqual(v.rows.income, [
-    { accountId: 'salario', name: 'Salário', amount: reais(3000), estimated: true, empty: false, hasDefault: true },
+    // Salário já recebido: lançamento marcado (paid), sem "estimado".
+    { accountId: 'salario', name: 'Salário', amount: reais(3000), estimated: false, empty: false, hasDefault: true, paid: true },
   ]);
   assert.deepEqual(v.rows.expense.map((r) => r.name), ['Nubank', 'Inter', 'Renner', 'C&A', 'Unha']);
   assert.deepEqual(v.rows.expense[0], {
-    accountId: 'nubank', name: 'Nubank', amount: reais(900), estimated: false, empty: false, hasDefault: false,
+    accountId: 'nubank', name: 'Nubank', amount: reais(900), estimated: false, empty: false, hasDefault: false, paid: false,
   });
   assert.deepEqual(v.rows.expense[4], {
-    accountId: 'unha', name: 'Unha', amount: reais(150), estimated: true, empty: false, hasDefault: true,
+    accountId: 'unha', name: 'Unha', amount: reais(150), estimated: true, empty: false, hasDefault: true, paid: false,
   });
 });
 
@@ -117,7 +123,7 @@ test('mês futuro: Entra, Sai e sobra prevista do project', () => {
   assert.equal(dec.balance, undefined);
   // Lançamento da Unha em dezembro vence o padrão.
   assert.deepEqual(dec.rows.expense.find((r) => r.accountId === 'unha'), {
-    accountId: 'unha', name: 'Unha', amount: reais(200), estimated: false, empty: false, hasDefault: true,
+    accountId: 'unha', name: 'Unha', amount: reais(200), estimated: false, empty: false, hasDefault: true, paid: false,
   });
 
   const mar = monthView(seedData(), today, '2027-03');
@@ -148,7 +154,7 @@ test('"—": sem lançamento e sem padrão a linha vem vazia', () => {
   const v = monthView(seedData(), today, '2026-09');
   const nubank = v.rows.expense.find((r) => r.accountId === 'nubank');
   assert.deepEqual(nubank, {
-    accountId: 'nubank', name: 'Nubank', amount: 0, estimated: false, empty: true, hasDefault: false,
+    accountId: 'nubank', name: 'Nubank', amount: 0, estimated: false, empty: true, hasDefault: false, paid: false,
   });
   // Lançamento de valor zero não é "—".
   const d = seedData();
@@ -168,7 +174,7 @@ test('arquivada aparece só com lançamento no mês e não usa o padrão', () =>
   // Empate de ordem com a Renner: desempata pelo nome.
   assert.deepEqual(nov.rows.expense.map((r) => r.name), ['Nubank', 'Inter', 'Renner', 'Velha', 'C&A', 'Unha']);
   assert.deepEqual(nov.rows.expense.find((r) => r.accountId === 'velha'), {
-    accountId: 'velha', name: 'Velha', amount: reais(40), estimated: false, empty: false, hasDefault: false,
+    accountId: 'velha', name: 'Velha', amount: reais(40), estimated: false, empty: false, hasDefault: false, paid: false,
   });
 });
 
@@ -191,18 +197,34 @@ test('limites de ±12 meses funcionam como passado e futuro', () => {
   assert.equal(last.month, '2027-10');
 });
 
-test('mês atual traz toReceive e flags; tela do Fabiano sem check-in', () => {
+test('mês atual traz toReceive; tela do Fabiano sem check-in', () => {
   const accounts = [{ id: 's', name: 'Salário', type: 'income', defaultAmount: reais(1000), order: 1, active: true }];
   const v = monthView({ accounts, entries: [], checkins: [], settings: {} }, today, '2026-10');
   assert.equal(v.balance, 0);
   assert.equal(v.toReceive, reais(1000));
   assert.equal(v.toPay, 0);
   assert.equal(v.endOfMonth, reais(1000));
-  assert.deepEqual(v.flags, { hasCheckin: false, billsPaid: false, incomeReceived: false });
+  assert.equal('flags' in v, false);
+  assert.equal(v.rows.income[0].paid, false);
 
   const seed = monthView(seedData(), today, '2026-10');
   assert.equal(seed.toReceive, 0);
-  assert.deepEqual(seed.flags, { hasCheckin: true, billsPaid: false, incomeReceived: true });
+  assert.equal('flags' in seed, false);
+});
+
+test('linha ganha paid conforme o paidAt do lançamento; paidAt null é não marcado', () => {
+  const d = seedData();
+  const at = new Date(2026, 9, 10, 9).toISOString();
+  d.entries.find((e) => e.accountId === 'nubank' && e.month === '2026-10').paidAt = at;
+  d.entries.find((e) => e.accountId === 'inter' && e.month === '2026-10').paidAt = null;
+  const v = monthView(d, today, '2026-10');
+  const paid = Object.fromEntries(v.rows.expense.map((r) => [r.accountId, r.paid]));
+  assert.deepEqual(paid, { nubank: true, inter: false, renner: false, cea: false, unha: false });
+  assert.equal(v.rows.income[0].paid, true);
+  // Nubank marcado depois do check-in: sai de Falta pagar e do Na conta, sem mudar a sobra.
+  assert.equal(v.toPay, reais(1250));
+  assert.equal(v.balance, reais(2100));
+  assert.equal(v.endOfMonth, reais(850));
 });
 
 test('mês passado e futuro não têm toReceive nem flags', () => {

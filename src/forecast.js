@@ -40,15 +40,48 @@ export function monthTotals(data, month) {
   return { income, expense };
 }
 
+// Pendentes do mês: soma dos valores efetivos dos itens SEM `paidAt` (R' e D').
+// Item estimado (sem lançamento) conta como não marcado. Contas arquivadas seguem
+// a regra do effectiveAmount: só entram se tiverem lançamento no mês.
+export function pendingTotals(data, month) {
+  let income = 0;
+  let expense = 0;
+  for (const account of data.accounts || []) {
+    const entry = (data.entries || []).find((e) => e.accountId === account.id && e.month === month);
+    if (entry?.paidAt) continue;
+    const { amount } = effectiveAmount(account, month, data.entries);
+    if (account.type === 'income') income += amount;
+    else if (account.type === 'expense') expense += amount;
+  }
+  return { income, expense };
+}
+
+// "Na conta": saldo do check-in (`base.balance`) mais as entradas marcadas depois dele
+// (`paidAt` > `base.at`, comparação de string ISO) menos as contas marcadas depois dele.
+// Sem check-in, a base é { balance: 0, at: '' }: todo item marcado conta.
+// Com `month` (mês corrente), só entram lançamentos desse mês ou anteriores:
+// uma marcação em mês futuro não mexe no que já está na conta.
+export function effectiveBalance(data, base, month) {
+  const typeOf = new Map((data.accounts || []).map((a) => [a.id, a.type]));
+  const since = base?.at || '';
+  let balance = base?.balance || 0;
+  for (const e of data.entries || []) {
+    if (!e.paidAt || !(e.paidAt > since)) continue;
+    if (month && e.month > month) continue;
+    const type = typeOf.get(e.accountId);
+    if (type === 'income') balance += e.amount;
+    else if (type === 'expense') balance -= e.amount;
+  }
+  return balance;
+}
+
 // Base do cálculo: o check-in mais recente (maior `at`) ou, sem nenhum, saldo 0 no mês atual.
 function baseCheckin(data, today) {
   let last = null;
   for (const c of data.checkins || []) {
     if (!last || c.at > last.at) last = c;
   }
-  if (!last) {
-    return { balance: 0, month: monthOf(today), billsPaid: false, incomeReceived: false };
-  }
+  if (!last) return { balance: 0, month: monthOf(today), at: '' };
   return last;
 }
 
@@ -59,18 +92,19 @@ function currentMonth(base, today) {
   return base.month > m ? base.month : m;
 }
 
-// Sobra acumulada no fim de cada mês, de A até `to`.
+// Sobra acumulada no fim de cada mês, de A (mês do check-in) até `to`.
+// `current` é o mês corrente (limite das marcações que contam em "Na conta").
 // `extra(month)` soma despesas simuladas (Posso comprar?).
-function endBalances(data, base, to, extra = () => 0) {
+function endBalances(data, base, current, to, extra = () => 0) {
   const result = new Map();
   let month = base.month;
-  let { income, expense } = monthTotals(data, month);
+  let { income, expense } = pendingTotals(data, month);
   expense += extra(month);
-  let balance = base.balance + (base.incomeReceived ? 0 : income) - (base.billsPaid ? 0 : expense);
+  let balance = effectiveBalance(data, base, current) + income - expense;
   result.set(month, balance);
   while (month < to) {
     month = addMonths(month, 1);
-    ({ income, expense } = monthTotals(data, month));
+    ({ income, expense } = pendingTotals(data, month));
     expense += extra(month);
     balance += income - expense;
     result.set(month, balance);
@@ -78,35 +112,26 @@ function endBalances(data, base, to, extra = () => 0) {
   return result;
 }
 
-// Marcações do último check-in (maior `at`) do mês de `now`.
-// Sem check-in nesse mês, tudo `false`. Mora aqui (e não no checkin.js) para a
-// tela Mês usar sem import circular; o checkin.js reexporta.
-export function monthFlags(data, now) {
-  const month = monthOf(now);
-  let last = null;
-  for (const c of data.checkins || []) {
-    if (c.month === month && (!last || c.at > last.at)) last = c;
-  }
-  if (!last) return { hasCheckin: false, billsPaid: false, incomeReceived: false };
-  return { hasCheckin: true, billsPaid: last.billsPaid === true, incomeReceived: last.incomeReceived === true };
-}
-
 // Topo da tela Mês: Na conta, Falta receber, Falta pagar e Sobra no fim do mês.
 export function currentStatus(data, today) {
   const base = baseCheckin(data, today);
   const month = currentMonth(base, today);
-  const ends = endBalances(data, base, month);
-  const totals = monthTotals(data, month);
-  const toReceive = base.month === month && base.incomeReceived ? 0 : totals.income;
-  const toPay = base.month === month && base.billsPaid ? 0 : totals.expense;
-  return { month, balance: base.balance, toReceive, toPay, endOfMonth: ends.get(month) };
+  const ends = endBalances(data, base, month, month);
+  const pending = pendingTotals(data, month);
+  return {
+    month,
+    balance: effectiveBalance(data, base, month),
+    toReceive: pending.income,
+    toPay: pending.expense,
+    endOfMonth: ends.get(month),
+  };
 }
 
 // Próximos `months` meses depois do mês corrente, com a sobra acumulada.
 export function project(data, today, months) {
   const base = baseCheckin(data, today);
   const current = currentMonth(base, today);
-  const ends = endBalances(data, base, addMonths(current, months));
+  const ends = endBalances(data, base, current, addMonths(current, months));
   const list = [];
   for (let k = 1; k <= months; k++) {
     const month = addMonths(current, k);
@@ -135,8 +160,8 @@ export function canBuy(data, today, { installment, count, horizon } = {}) {
   const extra = (m) => (m >= first && m <= lastInstallment ? installment : 0);
 
   const to = addMonths(current, Math.max(h, count));
-  const before = endBalances(data, base, to);
-  const after = endBalances(data, base, to, extra);
+  const before = endBalances(data, base, current, to);
+  const after = endBalances(data, base, current, to, extra);
 
   // Verifica toda a faixa M … M+max(H, n), inclusive além do horizonte exibido.
   let firstNegative = null;
