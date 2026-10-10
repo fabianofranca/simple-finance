@@ -35,6 +35,9 @@ function applyOp(data, op) {
         if (i >= 0) list.splice(i, 1);
       } else {
         const row = { accountId: e.accountId, month: e.month, amount: e.amount, updatedAt: new Date().toISOString() };
+        // `paidAt` ausente mantém a marcação da linha; presente (inclusive null) substitui
+        if ('paidAt' in e && e.paidAt !== undefined) row.paidAt = e.paidAt;
+        else if (i >= 0 && list[i].paidAt !== undefined) row.paidAt = list[i].paidAt;
         if (i >= 0) list[i] = row;
         else list.push(row);
       }

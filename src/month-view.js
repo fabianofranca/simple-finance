@@ -1,7 +1,7 @@
 // O que a tela Mês exibe (regras em plans/phase-2.md, seção "Regras da tela Mês").
 // Módulo puro: só chama o forecast.js; `today` vem por parâmetro.
 
-import { addMonths, effectiveAmount, monthTotals, currentStatus, project, monthFlags } from './forecast.js';
+import { addMonths, effectiveAmount, monthTotals, currentStatus, project } from './forecast.js';
 
 const NAV_LIMIT = 12;
 const DEFAULT_HORIZON = 3;
@@ -58,6 +58,7 @@ function rowsOf(data, month, type) {
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || String(a.name).localeCompare(String(b.name), 'pt-BR'))
     .map((a) => {
       const { amount, estimated } = effectiveAmount(a, month, entries);
+      const entry = entries.find((e) => e.accountId === a.id && e.month === month);
       const hasDefault = Boolean(a.active) && a.defaultAmount != null;
       return {
         accountId: a.id,
@@ -66,6 +67,7 @@ function rowsOf(data, month, type) {
         estimated,
         empty: !hasEntry(a.id) && !hasDefault,
         hasDefault,
+        paid: Boolean(entry?.paidAt),
       };
     });
 }
@@ -87,7 +89,6 @@ export function monthView(data, today, month) {
     view.toReceive = status.toReceive;
     view.toPay = status.toPay;
     view.endOfMonth = status.endOfMonth;
-    view.flags = monthFlags(data, today);
     view.upcoming = project(data, today, horizonOf(data)).map((p) => ({
       ...p,
       label: monthName(p.month),

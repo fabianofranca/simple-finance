@@ -145,6 +145,45 @@ test('saveEntries faz upsert e amount null apaga o lançamento', async () => {
   await flush();
 });
 
+test('saveEntries: paidAt ausente mantém, presente troca, null limpa e amount null apaga', async () => {
+  const { store } = await loaded();
+  const find = (m) => store.getData().entries.find(e => e.month === m);
+  const at = '2026-10-12T09:00:00.000Z';
+  const later = '2026-10-13T09:00:00.000Z';
+
+  // lançamento novo sem a chave: sem marcação
+  store.saveEntries([{ accountId: 'a1', month: '2026-11', amount: 100 }]);
+  assert.ok(!find('2026-11').paidAt);
+
+  // marcar
+  store.saveEntries([{ accountId: 'a1', month: '2026-11', amount: 100, paidAt: at }]);
+  assert.equal(find('2026-11').paidAt, at);
+
+  // editar o valor sem a chave mantém a marcação
+  store.saveEntries([{ accountId: 'a1', month: '2026-11', amount: 150 }]);
+  assert.equal(find('2026-11').amount, 150);
+  assert.equal(find('2026-11').paidAt, at);
+
+  // presente troca
+  store.saveEntries([{ accountId: 'a1', month: '2026-11', amount: 150, paidAt: later }]);
+  assert.equal(find('2026-11').paidAt, later);
+
+  // null limpa (e fica null, não ausente)
+  store.saveEntries([{ accountId: 'a1', month: '2026-11', amount: 150, paidAt: null }]);
+  assert.equal(find('2026-11').paidAt, null);
+
+  // outro mês não é afetado
+  store.saveEntries([{ accountId: 'a1', month: '2026-12', amount: 7 }]);
+  assert.ok(!find('2026-12').paidAt);
+
+  // amount null apaga o lançamento, com ou sem marcação
+  store.saveEntries([{ accountId: 'a1', month: '2026-11', amount: 150, paidAt: at }]);
+  store.saveEntries([{ accountId: 'a1', month: '2026-11', amount: null }]);
+  assert.equal(find('2026-11'), undefined);
+  assert.equal(store.getData().entries.length, 1);
+  await flush();
+});
+
 test('saveSettings só aceita as chaves permitidas e faz merge', async () => {
   const { store, api } = await loaded({ server: { settings: { environment: 'test', horizonMonths: 3 } } });
   store.saveSettings({ checkinFrequency: 'daily', environment: 'production' });

@@ -2,12 +2,10 @@
 // Módulo puro: sem DOM e sem relógio; `now` vem por parâmetro. `at` é ISO (UTC);
 // para comparar dias, usa a data local do aparelho.
 
-import { monthOf, currentStatus, monthFlags, effectiveAmount, monthTotals } from './forecast.js';
+import { monthOf, currentStatus, effectiveAmount } from './forecast.js';
 import { activeAccounts } from './accounts.js';
 import { formatMoney } from './money.js';
 import { monthName } from './month-view.js';
-
-export { monthFlags };
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -28,13 +26,6 @@ function lastOf(checkins) {
   return last;
 }
 
-// Check-ins do mês, do mais antigo para o mais recente.
-function ofMonth(data, month) {
-  return (data.checkins || [])
-    .filter((c) => c.month === month)
-    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
-}
-
 // Abre sozinho? Sem nenhuma conta ativa (nada cadastrado ou só arquivadas), nunca:
 // não há o que perguntar. Sem check-in, sempre (e o "Agora não" não vale).
 // Com "toda vez" (always) o "Agora não" também é ignorado: só pula aquela abertura.
@@ -50,46 +41,30 @@ export function shouldOpenCheckin(data, now, snoozeDay = null) {
   return localDay(new Date(last.at)) !== localDay(now);
 }
 
-// Uma linha (contas ou salário) segue o ÚLTIMO check-in do mês:
-// "sim" some a linha; "não" mostra com "Ainda não" (é o jeito de desfazer);
-// sem check-in no mês, vem sem seleção.
-function lineOf(list, field) {
-  if (!list.length) return { show: true, preset: null };
-  if (list[list.length - 1][field] === true) return { show: false, preset: true };
-  return { show: true, preset: false };
-}
-
-// Estado inicial da tela de check-in.
+// Estado inicial da tela de check-in: só o saldo. Já com check-in, o campo vem com o
+// "Na conta" que o cartão mostra; sem nenhum, vem vazio e obrigatório (null).
 export function checkinForm(data, now) {
-  const month = monthOf(now);
-  const list = ofMonth(data, month);
   const last = lastOf(data.checkins);
   return {
-    month,
-    balance: last ? last.balance : null,
-    bills: lineOf(list, 'billsPaid'),
-    income: lineOf(list, 'incomeReceived'),
+    month: monthOf(now),
+    balance: last ? currentStatus(data, now).balance : null,
   };
 }
 
-// Confirmar libera com saldo válido e cada linha visível respondida.
+// Confirmar libera com saldo inteiro válido.
 export function canConfirm(form, answers) {
-  if (!Number.isInteger(answers?.balance)) return false;
-  if (form.bills.show && typeof answers.billsPaid !== 'boolean') return false;
-  if (form.income.show && typeof answers.incomeReceived !== 'boolean') return false;
-  return true;
+  return Number.isInteger(answers?.balance);
 }
 
-// Payload do check-in. Linha escondida grava `true`; a sobra prevista
-// é a do currentStatus com este check-in acrescentado aos dados.
-export function buildCheckin(data, now, { balance, billsPaid, incomeReceived }) {
-  const form = checkinForm(data, now);
+// Payload do check-in. As antigas marcações em bloco não existem mais (gravam false);
+// a sobra prevista é a do currentStatus com este check-in acrescentado aos dados.
+export function buildCheckin(data, now, { balance }) {
   const checkin = {
     at: now.toISOString(),
-    month: form.month,
+    month: monthOf(now),
     balance,
-    billsPaid: form.bills.show ? billsPaid === true : true,
-    incomeReceived: form.income.show ? incomeReceived === true : true,
+    billsPaid: false,
+    incomeReceived: false,
     projectedBalance: 0,
   };
   const next = { ...data, checkins: [...(data.checkins || []), checkin] };
@@ -97,68 +72,28 @@ export function buildCheckin(data, now, { balance, billsPaid, incomeReceived }) 
   return checkin;
 }
 
-// Switch com um toque da tela Mês (plans/phase-4.md, T4): passa o dinheiro de
-// "Falta receber"/"Falta pagar" para "Na conta" e nunca muda a sobra.
-// `field` é 'incomeReceived' (contas income) ou 'billsPaid' (contas expense).
-// Devolve { entries, checkin, total }:
-// - entries: ao ligar, as contas do tipo com valor estimado no mês viram lançamentos
-//   { accountId, month, amount }; ao desligar, [] (os lançamentos ficam);
-// - checkin: saldo do último check-in do mês ± total, a outra marcação copiada;
-// - total: soma dos valores efetivos do tipo no mês (para o `toggleNotice`).
-// Sem check-in no mês lança Error: a tela deve abrir o "Atualizar saldo".
-export function buildToggle(data, now, { field, value }) {
-  if (field !== 'billsPaid' && field !== 'incomeReceived') {
-    throw new Error(`field inválido: ${field}`);
-  }
+// Check de uma linha da tela Mês (um toque): marca ou desmarca o item do mês atual.
+// Devolve { entries, notice }:
+// - entries: um lançamento { accountId, month, amount, paidAt } com o valor efetivo
+//   (item estimado vira lançamento); `paidAt` é o instante ISO ao marcar, null ao desmarcar;
+// - notice: confirmação curta; null com valor 0. O sinal vem do texto e fica colado
+//   ao valor (espaço não-quebrável) para não sobrar sozinho no fim da linha.
+// Conta inexistente lança Error.
+export function buildPaid(data, now, { accountId, paid }) {
+  const account = (data.accounts || []).find((a) => a.id === accountId);
+  if (!account) throw new Error(`conta inexistente: ${accountId}`);
   const month = monthOf(now);
-  const last = lastOf(ofMonth(data, month));
-  if (!last) throw new Error(`sem check-in em ${month}`);
-
-  const type = field === 'incomeReceived' ? 'income' : 'expense';
-  const on = value === true;
-  const entries = [];
-  if (on) {
-    for (const account of data.accounts || []) {
-      if (account.type !== type) continue;
-      const { amount, estimated } = effectiveAmount(account, month, data.entries);
-      if (estimated) entries.push({ accountId: account.id, month, amount });
-    }
+  const { amount } = effectiveAmount(account, month, data.entries);
+  const on = paid === true;
+  const entries = [{ accountId, month, amount, paidAt: on ? now.toISOString() : null }];
+  let notice = null;
+  if (amount) {
+    const money = formatMoney(Math.abs(amount));
+    if (!on) notice = `${account.name} desmarcado.`;
+    else if (account.type === 'income') notice = `${account.name} recebido: +\u00a0${money} na conta.`;
+    else notice = `${account.name} pago: −\u00a0${money} na conta.`;
   }
-  const withEntries = { ...data, entries: [...(data.entries || []), ...entries] };
-  const totals = monthTotals(withEntries, month);
-  const total = type === 'income' ? totals.income : totals.expense;
-  // Recebi soma na conta; Paguei tira. Desligar faz o contrário.
-  const sign = (type === 'income') === on ? 1 : -1;
-
-  const checkin = {
-    at: now.toISOString(),
-    month,
-    balance: last.balance + sign * total,
-    billsPaid: last.billsPaid === true,
-    incomeReceived: last.incomeReceived === true,
-    projectedBalance: 0,
-  };
-  checkin[field] = on;
-  const next = { ...withEntries, checkins: [...(data.checkins || []), checkin] };
-  checkin.projectedBalance = currentStatus(next, now).endOfMonth;
-  return { entries, checkin, total };
-}
-
-// Confirmação curta depois do toque (sem diálogo); null com total 0.
-// `total` em centavos; o sinal vem do texto, não do número, e fica colado ao valor
-// (espaço não-quebrável) para não sobrar sozinho no fim da linha.
-export function toggleNotice(field, value, total, month) {
-  if (!total) return null;
-  const name = monthName(month);
-  const money = formatMoney(Math.abs(total));
-  if (field === 'incomeReceived') {
-    return value
-      ? `Salário de ${name} somado: +\u00a0${money} na conta.`
-      : `Salário de ${name} tirado: −\u00a0${money} na conta.`;
-  }
-  return value
-    ? `Contas de ${name} descontadas: −\u00a0${money} na conta.`
-    : `Contas de ${name} devolvidas: +\u00a0${money} na conta.`;
+  return { entries, notice };
 }
 
 // Aviso educativo: a sobra caiu desde o check-in anterior do mesmo mês?

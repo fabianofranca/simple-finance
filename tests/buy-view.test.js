@@ -33,12 +33,17 @@ function seedData() {
       if (v !== null) entries.push({ accountId, month: MONTHS[i], amount: reais(v), updatedAt: '2026-10-01T00:00:00.000Z' });
     });
   }
+  // Salário de outubro já recebido: marcado antes do check-in, que já inclui o dinheiro.
+  entries.push({
+    accountId: 'salario', month: '2026-10', amount: reais(3000),
+    updatedAt: '2026-10-01T00:00:00.000Z', paidAt: new Date(2026, 9, 1, 8).toISOString(),
+  });
   const checkins = [{
     at: new Date(2026, 9, 1, 9).toISOString(),
     month: '2026-10',
     balance: reais(3000),
     billsPaid: false,
-    incomeReceived: true,
+    incomeReceived: false,
     projectedBalance: reais(850),
   }];
   return { accounts, entries, checkins, settings: { checkinFrequency: 'daily', horizonMonths: 3 } };
