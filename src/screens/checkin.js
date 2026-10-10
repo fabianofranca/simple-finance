@@ -1,4 +1,4 @@
-// Tela Check-in: saldo em conta e duas perguntas (contas pagas, salário caiu).
+// Tela Atualizar saldo (check-in): só o campo "Na conta".
 // Regras em src/checkin.js; aqui só se monta a tela.
 import { checkinForm, canConfirm, buildCheckin, dropNotice, localDay } from '../checkin.js';
 import { formatInput, parseMoney } from '../money.js';
@@ -19,32 +19,6 @@ function h(tag, props = {}, ...children) {
   return node;
 }
 
-// Par de botões grandes "sim / ainda não" que se comportam como um grupo de opções.
-function choiceRow({ id, label, yesText, onChange, preset }) {
-  let value = preset;
-  const labelEl = h('div', { class: 'checkin-label', id: `${id}-label`, text: label });
-  const yes = h('button', { type: 'button', class: 'choice', 'aria-pressed': 'false', text: yesText });
-  const no = h('button', { type: 'button', class: 'choice', 'aria-pressed': 'false', text: 'Ainda não' });
-  const paint = () => {
-    yes.setAttribute('aria-pressed', String(value === true));
-    no.setAttribute('aria-pressed', String(value === false));
-  };
-  const pick = (v) => () => {
-    value = v;
-    paint();
-    onChange(v);
-  };
-  yes.addEventListener('click', pick(true));
-  no.addEventListener('click', pick(false));
-  paint();
-  return h(
-    'div',
-    { class: 'checkin-row', role: 'group', 'aria-labelledby': labelEl.id },
-    labelEl,
-    h('div', { class: 'choices' }, yes, no),
-  );
-}
-
 function snoozeToday(now) {
   try {
     localStorage.setItem(SNOOZE_KEY, localDay(now));
@@ -62,15 +36,7 @@ export function mount(el, ctx) {
     built = true;
     const form = checkinForm(data, ctx.now());
     const hasPrevious = (data.checkins || []).length > 0;
-    // Vindo de um switch da tela Mês (#checkin/paguei ou #checkin/recebi), aquela linha já vem no "sim".
-    const preset = ctx.params && ctx.params.preset;
-    if (preset === 'billsPaid' && form.bills.show) form.bills.preset = true;
-    if (preset === 'incomeReceived' && form.income.show) form.income.preset = true;
-    const answers = {
-      balance: form.balance,
-      billsPaid: form.bills.preset === null ? undefined : form.bills.preset,
-      incomeReceived: form.income.preset === null ? undefined : form.income.preset,
-    };
+    const answers = { balance: form.balance };
     const name = monthName(form.month);
 
     const title = h('h1', { text: `Como está ${name}?` });
@@ -107,26 +73,6 @@ export function mount(el, ctx) {
       focusAtEnd(input); // cursor no fim, sem selecionar (senão o próximo dígito apagaria o sinal)
     });
 
-    const rows = [balanceBox];
-    if (form.bills.show) {
-      rows.push(choiceRow({
-        id: 'bills',
-        label: `Contas de ${name}`,
-        yesText: 'Já paguei',
-        preset: form.bills.preset,
-        onChange: (v) => { answers.billsPaid = v; refresh(); },
-      }));
-    }
-    if (form.income.show) {
-      rows.push(choiceRow({
-        id: 'income',
-        label: `Salário de ${name}`,
-        yesText: 'Já caiu',
-        preset: form.income.preset,
-        onChange: (v) => { answers.incomeReceived = v; refresh(); },
-      }));
-    }
-
     // Volta para a tela de onde o check-in foi aberto (ou o Mês atual, sem tela anterior).
     const leave = () => ctx.back();
 
@@ -157,7 +103,7 @@ export function mount(el, ctx) {
       actions.append(back);
     }
 
-    el.replaceChildren(h('section', { class: 'checkin' }, title, ...rows, actions));
+    el.replaceChildren(h('section', { class: 'checkin' }, title, balanceBox, actions));
     refresh();
   }
 

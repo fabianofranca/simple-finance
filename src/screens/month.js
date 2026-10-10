@@ -1,9 +1,9 @@
 // Tela Mês: resumo do mês, próximos meses e edição dos valores de cada conta.
 // Regras de exibição em src/month-view.js; dinheiro sempre por src/money.js.
-import { addMonths, currentStatus, monthFlags } from '../forecast.js';
+import { addMonths, currentStatus } from '../forecast.js';
 import { monthView, monthLabel, monthName, navRange, resolveMonth } from '../month-view.js';
 import { formatMoney, formatInput, parseMoney } from '../money.js';
-import { buildToggle, toggleNotice } from '../checkin.js';
+import { buildPaid } from '../checkin.js';
 import { reminder } from '../review.js';
 import { activeAccounts } from '../accounts.js';
 import { h, money, queueLine, selectOnFocus } from './ui.js';
@@ -46,43 +46,37 @@ export function mount(el, ctx) {
     if (dialog.open) dialog.close();
   }
 
-  // ----- switches "Recebi" / "Paguei" (só no mês atual) -----
+  // ----- check por linha (só no mês atual) -----
   // Um toque só: passa o dinheiro de "Falta receber/pagar" para "Na conta" (ou devolve), sem mexer na sobra.
-  const lastTap = {}; // campo -> instante (ms) do último toque tratado
-  const TAP_GUARD_MS = 400; // segura o toque duplo: o redesenho já troca o switch, o 2º toque desfaria o 1º
+  const lastTap = {}; // conta -> instante (ms) do último toque tratado
+  const TAP_GUARD_MS = 400; // segura o toque duplo: o redesenho já troca o check, o 2º toque desfaria o 1º
 
-  function onSwitch(field, value) {
+  function onCheck(row) {
     const data = store.getData();
-    const now = ctx.now();
     if (!data) return;
-    if (!monthFlags(data, now).hasCheckin) {
-      // o primeiro saldo do mês precisa ser o real: leva ao "Atualizar saldo"
-      ctx.navigate(field === 'billsPaid' ? '#checkin/paguei' : '#checkin/recebi');
-      return;
-    }
     const t = performance.now();
-    if (lastTap[field] !== undefined && t - lastTap[field] < TAP_GUARD_MS) return;
-    lastTap[field] = t;
-    const { entries, checkin, total } = buildToggle(data, now, { field, value });
-    if (entries.length) store.saveEntries(entries);
-    store.saveCheckin(checkin);
-    const text = toggleNotice(field, value, total, checkin.month);
-    if (text) ctx.notify(text);
+    if (lastTap[row.accountId] !== undefined && t - lastTap[row.accountId] < TAP_GUARD_MS) return;
+    lastTap[row.accountId] = t;
+    const { entries, notice } = buildPaid(data, ctx.now(), { accountId: row.accountId, paid: !row.paid });
+    store.saveEntries(entries);
+    if (notice) ctx.notify(notice);
   }
 
-  function switchButton(field, text, on) {
+  // Círculo vazio ou com ✓: o ✓ aparece só marcado, então não depende só da cor.
+  function checkButton(row, type) {
+    const verb = type === 'income' ? 'recebido' : 'pago';
     return h(
       'button',
       {
         type: 'button',
-        class: 'switch',
-        role: 'switch',
-        'aria-checked': String(on),
-        'data-switch': field,
-        onclick: () => onSwitch(field, !on)
+        class: 'check',
+        role: 'checkbox',
+        'aria-checked': String(row.paid),
+        'aria-label': `${row.paid ? 'Desmarcar' : 'Marcar'} ${row.name} como ${verb}`,
+        'data-check': row.accountId,
+        onclick: () => onCheck(row)
       },
-      h('span', { class: 'switch-text' }, text),
-      h('span', { class: 'switch-track', 'aria-hidden': 'true' }, h('span', { class: 'switch-thumb' }))
+      h('span', { class: 'check-box', 'aria-hidden': 'true' }, row.paid ? '✓' : '')
     );
   }
 
@@ -104,6 +98,15 @@ export function mount(el, ctx) {
       closeDialog();
     }
 
+    // Item marcado: grava o valor padrão como lançamento (sem paidAt, a marcação fica);
+    // item não marcado: apaga o lançamento e volta ao estimado.
+    function useDefault() {
+      const account = (store.getData()?.accounts || []).find((a) => a.id === row.accountId);
+      const entry = (store.getData()?.entries || []).find((e) => e.accountId === row.accountId && e.month === month);
+      if (entry?.paidAt && account && account.defaultAmount != null) save(account.defaultAmount);
+      else save(null);
+    }
+
     const form = h(
       'form',
       { class: 'edit-form' },
@@ -118,7 +121,7 @@ export function mount(el, ctx) {
         h('button', { type: 'button', class: 'ghost', onclick: closeDialog }, 'Cancelar')
       ),
       row.hasDefault &&
-        h('button', { type: 'button', class: 'link', onclick: () => save(null) }, 'Usar o valor padrão')
+        h('button', { type: 'button', class: 'link', onclick: useDefault }, 'Usar o valor padrão')
     );
     form.addEventListener('submit', (ev) => {
       ev.preventDefault();
@@ -223,11 +226,11 @@ export function mount(el, ctx) {
     );
   }
 
-  function section(title, rows, month, toggle = null) {
+  function section(title, rows, month, type, withCheck) {
     return h(
       'section',
       { class: 'block' },
-      toggle ? h('div', { class: 'block-head' }, h('h2', {}, title), toggle) : h('h2', {}, title),
+      h('h2', {}, title),
       rows.length
         ? h(
             'ul',
@@ -237,7 +240,8 @@ export function mount(el, ctx) {
               const cls = `value-btn${row.estimated ? ' estimated' : ''}${!row.empty && row.amount < 0 ? ' neg' : ''}`;
               return h(
                 'li',
-                { class: 'row' },
+                { class: `row${row.paid ? ' paid' : ''}` },
+                withCheck && checkButton(row, type),
                 h('span', { class: 'row-name' }, row.name),
                 h(
                   'button',
@@ -293,10 +297,8 @@ export function mount(el, ctx) {
           reminderBanner(data, today),
           h('section', { class: 'summary' }, ...summary(view)),
           upcomingBlock(view),
-          section('Entradas', view.rows.income, month,
-            isCurrent && switchButton('incomeReceived', 'Recebi', view.flags.incomeReceived)),
-          section('Contas', view.rows.expense, month,
-            isCurrent && switchButton('billsPaid', 'Paguei', view.flags.billsPaid)),
+          section('Entradas', view.rows.income, month, 'income', isCurrent),
+          section('Contas', view.rows.expense, month, 'expense', isCurrent),
           h(
             'div',
             { class: 'foot' },
@@ -304,10 +306,10 @@ export function mount(el, ctx) {
             h('button', { type: 'button', class: 'ghost', onclick: () => ctx.navigate('#revisao') }, 'Revisar valores')
           )
         ];
-    // O redesenho troca os botões; se o foco estava num switch, devolve o foco ao novo.
-    const focused = content.contains(document.activeElement) ? document.activeElement.dataset.switch : null;
+    // O redesenho troca os botões; se o foco estava num check, devolve o foco ao novo.
+    const focused = content.contains(document.activeElement) ? document.activeElement.dataset.check : null;
     content.replaceChildren(...parts.filter(Boolean)); // replaceChildren(null) escreveria "null"
-    if (focused) content.querySelector(`[data-switch="${focused}"]`)?.focus();
+    if (focused) content.querySelector(`[data-check="${CSS.escape(focused)}"]`)?.focus();
   }
 
   const unsubscribe = store.subscribe(render);
