@@ -11,6 +11,8 @@
 // 5. A primeira chamada (ex.: "Testar conexão") cria as abas Contas, Lancamentos,
 //    Checkins e Config, com cabeçalhos e formatos.
 //    Padrões da Config: check-in 1x por dia (diaria) e horizonte de 3 meses.
+//    Em planilha que já existe, as colunas novas do script (ex.: pago e pago_em, da aba
+//    Lancamentos) entram sozinhas no fim do cabeçalho na primeira chamada, sem mexer nos dados.
 // 6. Só na planilha de TESTE: na aba Config, adicione a linha  ambiente | teste
 //    (libera seed e reset). Na planilha da esposa essa linha não existe.
 //
@@ -25,15 +27,18 @@
 //   GET  ?key=...
 //     -> { ok, accounts, entries, checkins, settings }
 //        accounts : [{ id, name, type: 'expense'|'income', defaultAmount: int|null, order, active }]
-//        entries  : [{ accountId, month, amount, updatedAt }]
+//        entries  : [{ accountId, month, amount, updatedAt, paidAt: ISO|null }]
+//                   (paidAt = quando o item foi marcado como pago/recebido; null = sem marcação)
 //        checkins : [{ at, month, balance, billsPaid, incomeReceived, projectedBalance }]
 //        settings : { checkinFrequency: 'always'|'daily'|'weekly', horizonMonths,
 //                     lastReviewAt: string|null, environment: 'test'|'production' }
 //   POST { key, action: 'ping' }                                  -> { ok, time }
 //   POST { key, action: 'saveAccount', account: {...} }           -> { ok }   (upsert por id)
-//   POST { key, action: 'saveEntries', entries: [{accountId, month, amount}] }
+//   POST { key, action: 'saveEntries', entries: [{accountId, month, amount, paidAt?}] }
 //                                                                  -> { ok, saved }
 //        (upsert por conta + mês; amount null apaga a linha)
+//        paidAt: string ISO marca o item; null desmarca; chave ausente mantém a marcação
+//        da linha existente (lançamento novo sem a chave fica sem marcação)
 //   POST { key, action: 'saveCheckin', checkin: {...} }           -> { ok }   (append; idempotente por `at`)
 //   POST { key, action: 'saveSettings', settings: {...} }         -> { ok }
 //        (só checkinFrequency, horizonMonths e lastReviewAt)
@@ -66,7 +71,9 @@ const SHEETS = {
       { name: 'conta_id', kind: 'text' },
       { name: 'mes', kind: 'text' },
       { name: 'valor', kind: 'money' },
-      { name: 'atualizado_em', kind: 'text' }
+      { name: 'atualizado_em', kind: 'text' },
+      { name: 'pago', kind: 'bool' },
+      { name: 'pago_em', kind: 'text' }
     ]
   },
   Checkins: {
@@ -100,6 +107,7 @@ const FREQ_TO_SHEET = { always: 'toda_vez', daily: 'diaria', weekly: 'semanal' }
 const TYPE_TO_API = { despesa: 'expense', receita: 'income' };
 const TYPE_TO_SHEET = { expense: 'despesa', income: 'receita' };
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
 // ---------------------------------------------------------------------------
 // Entrada
@@ -198,16 +206,58 @@ function allSheetsExist() {
   return Object.keys(SHEETS).every(function (name) { return !!ss.getSheetByName(name); });
 }
 
-// Caminho barato: se tudo existe, não pega lock nem escreve
+// Cabeçalho da aba (linha 1) como lista de textos; [] se a aba está vazia
+function readHeaders(sheet) {
+  const lastCol = sheet.getLastColumn();
+  if (lastCol < 1) return [];
+  return sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String);
+}
+
+// Colunas do schema que ainda não estão no cabeçalho da aba
+function missingColumns(sheet, def) {
+  const headers = readHeaders(sheet);
+  return def.columns.filter(function (c) { return headers.indexOf(c.name) === -1; });
+}
+
+// Abas existem e todas têm as colunas do schema (só leituras: 1 por aba)
+function schemaComplete() {
+  if (!allSheetsExist()) return false;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  return Object.keys(SHEETS).every(function (name) {
+    return missingColumns(ss.getSheetByName(name), SHEETS[name]).length === 0;
+  });
+}
+
+// Caminho barato: se tudo existe e está completo, não pega lock nem escreve
 function ensureSheetsLocked() {
-  if (allSheetsExist()) return;
+  if (schemaComplete()) return;
   withLock(ensureSheets);
+}
+
+// Migração: acrescenta ao fim do cabeçalho as colunas novas do schema (de qualquer aba).
+// Só mexe nas colunas novas: formata a coluna e põe a caixa de seleção nas linhas que já
+// têm dados; os dados e as colunas existentes ficam como estão.
+function addMissingColumns(sheet, def) {
+  const missing = missingColumns(sheet, def);
+  if (missing.length === 0) return;
+  const headers = readHeaders(sheet);
+  const lastRow = sheet.getLastRow(); // antes de formatar: só linhas com dados
+  const names = missing.map(function (c) { return c.name; });
+  const start = headers.length + 1;
+  const newHeaders = headers.concat(names);
+  formatColumns(sheet, def, newHeaders, 2, Math.max(1, sheet.getMaxRows() - 1), false, names);
+  if (lastRow > 1) formatColumns(sheet, def, newHeaders, 2, lastRow - 1, true, names);
+  sheet.getRange(1, start, 1, names.length).setNumberFormat('@').setValues([names]).setFontWeight('bold');
 }
 
 function ensureSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   Object.keys(SHEETS).forEach(function (name) {
-    if (ss.getSheetByName(name)) return;
+    const found = ss.getSheetByName(name);
+    if (found) {
+      addMissingColumns(found, SHEETS[name]);
+      return;
+    }
     const def = SHEETS[name];
     const sheet = ss.insertSheet(name);
     const headers = def.columns.map(function (c) { return c.name; });
@@ -224,8 +274,10 @@ function ensureSheets() {
 // Aplica o formato de cada coluna (pelo cabeçalho) num intervalo de linhas
 // withCheckbox=false na criação da aba: a caixa de seleção só vai nas linhas gravadas
 // (senão as células viram "conteúdo" e o getLastRow passa a apontar para o fim da grade)
-function formatColumns(sheet, def, headers, startRow, numRows, withCheckbox) {
+// only (opcional): lista de nomes de coluna; as demais não são tocadas
+function formatColumns(sheet, def, headers, startRow, numRows, withCheckbox, only) {
   def.columns.forEach(function (c) {
+    if (only && only.indexOf(c.name) === -1) return;
     const col = headers.indexOf(c.name) + 1;
     if (col < 1) return;
     const range = sheet.getRange(startRow, col, numRows, 1);
@@ -379,7 +431,8 @@ function readAll() {
       accountId: readText(r.v.conta_id),
       month: month,
       amount: amount,
-      updatedAt: readText(r.v.atualizado_em)
+      updatedAt: readText(r.v.atualizado_em),
+      paidAt: readBool(r.v.pago) && readText(r.v.pago_em) !== '' ? readText(r.v.pago_em) : null
     });
   });
 
@@ -453,6 +506,11 @@ function checkBool(v) {
   return v;
 }
 
+function checkIsoOrNull(v) {
+  if (v !== null && (typeof v !== 'string' || !ISO_RE.test(v) || isNaN(Date.parse(v)))) invalid();
+  return v;
+}
+
 function checkMonth(v) {
   if (typeof v !== 'string' || !MONTH_RE.test(v)) invalid();
   return v;
@@ -477,7 +535,9 @@ function validateEntries(list, accountIds) {
     if (!isPlainObject(e)) invalid();
     const accountId = checkString(e.accountId);
     if (!accountIds[accountId]) invalid();
-    return { accountId: accountId, month: checkMonth(e.month), amount: checkIntOrNull(e.amount) };
+    const out = { accountId: accountId, month: checkMonth(e.month), amount: checkIntOrNull(e.amount), hasPaidAt: 'paidAt' in e };
+    if (out.hasPaidAt) out.paidAt = checkIsoOrNull(e.paidAt);
+    return out;
   });
 }
 
@@ -570,9 +630,20 @@ function saveEntries(payload) {
     const row = existing[k];
     if (row) {
       if (e.amount === null) toDelete.push(row.row);
-      else updateRow(table, row, { valor: toReais(e.amount), atualizado_em: now });
+      else {
+        const changes = { valor: toReais(e.amount), atualizado_em: now };
+        // paidAt ausente mantém a marcação que já estava na linha
+        if (e.hasPaidAt) {
+          changes.pago = e.paidAt !== null;
+          changes.pago_em = e.paidAt === null ? '' : e.paidAt;
+        }
+        updateRow(table, row, changes);
+      }
     } else if (e.amount !== null) {
-      toAppend.push({ conta_id: e.accountId, mes: e.month, valor: toReais(e.amount), atualizado_em: now });
+      toAppend.push({
+        conta_id: e.accountId, mes: e.month, valor: toReais(e.amount), atualizado_em: now,
+        pago: e.hasPaidAt && e.paidAt !== null, pago_em: e.hasPaidAt && e.paidAt !== null ? e.paidAt : ''
+      });
     }
   });
 
@@ -698,7 +769,7 @@ function seed() {
     for (let i = 0; i < months; i++) {
       const v = values[i] === undefined ? null : values[i];
       if (v !== null) {
-        entryRows.push({ conta_id: a.id, mes: addMonths(month0, i), valor: v, atualizado_em: now });
+        entryRows.push({ conta_id: a.id, mes: addMonths(month0, i), valor: v, atualizado_em: now, pago: false, pago_em: '' });
         effective[a.id].push(toCents(v));
       } else {
         effective[a.id].push(a.defaultAmount === null ? 0 : toCents(a.defaultAmount));

@@ -2,7 +2,8 @@
 # Teste ponta a ponta da API do Apps Script (valores em centavos).
 #
 # Modo padrão (não destrutivo): ping, leitura, conta "smoke-test" (arquivada),
-# lançamentos em 2099-12, payload inválido e chave errada. Não mexe em dados reais.
+# lançamentos em 2099-12 (inclusive a marcação de pago, paidAt), payload inválido e
+# chave errada. Não mexe em dados reais.
 #   cp .env.example .env (preencha) && ./scripts/smoke-test.sh
 #
 # Modo completo: SMOKE_FULL=1 ./scripts/smoke-test.sh
@@ -18,7 +19,7 @@ set -a; . ./.env; set +a
 : "${APPS_SCRIPT_KEY:?defina APPS_SCRIPT_KEY no .env}"
 
 FULL=0; [ "${SMOKE_FULL:-}" = "1" ] && FULL=1
-if [ "$FULL" = 1 ]; then TOTAL=12; MODO="completo"; else TOTAL=7; MODO="padrão"; fi
+if [ "$FULL" = 1 ]; then TOTAL=13; MODO="completo"; else TOTAL=8; MODO="padrão"; fi
 N=0
 
 fail() { echo "FALHA: $1" >&2; echo "Resposta: ${2:-}" >&2; exit 1; }
@@ -51,9 +52,9 @@ ok_post() {
   check "$1" "$r" 'd.ok === true'
 }
 entries_of() { js "$1" 'd.entries.filter(e => e.accountId === "smoke-test" && e.month === "2099-12")'; }
-# save_entries <rótulo> <amount|null>
+# save_entries <rótulo> <amount|null> [campos extras, ex.: ,"paidAt":null]
 save_entries() {
-  ok_post "$1" "\"action\":\"saveEntries\",\"entries\":[{\"accountId\":\"smoke-test\",\"month\":\"2099-12\",\"amount\":$2}]"
+  ok_post "$1" "\"action\":\"saveEntries\",\"entries\":[{\"accountId\":\"smoke-test\",\"month\":\"2099-12\",\"amount\":$2${3:-}}]"
 }
 
 step "ping"
@@ -91,6 +92,24 @@ g=$(getall) || fail "GET sem resposta"
 e=$(entries_of "$g")
 check "esperava uma linha com amount 200" "$e" 'd.length === 1 && d[0].amount === 200'
 echo "  ok: $e"
+
+step "paidAt: marcar, regravar só o valor (mantém a marcação) e desmarcar"
+PAID_AT=$(node -e "console.log(new Date().toISOString())") # portátil (o date do macOS não tem %N)
+save_entries "saveEntries com paidAt" 300 ",\"paidAt\":\"$PAID_AT\""
+g=$(getall) || fail "GET sem resposta"
+e=$(entries_of "$g")
+check "paidAt não voltou no GET (publicou a Nova versão do script da Fase 5?)" "$e" "d.length === 1 && d[0].amount === 300 && d[0].paidAt === \"$PAID_AT\""
+save_entries "saveEntries só o valor" 400
+g=$(getall) || fail "GET sem resposta"
+e=$(entries_of "$g")
+check "regravar só o valor apagou a marcação" "$e" "d.length === 1 && d[0].amount === 400 && d[0].paidAt === \"$PAID_AT\""
+save_entries "saveEntries paidAt null" 400 ',"paidAt":null'
+g=$(getall) || fail "GET sem resposta"
+e=$(entries_of "$g")
+check "paidAt null não desmarcou" "$e" 'd.length === 1 && d[0].amount === 400 && d[0].paidAt === null'
+r=$(post '"action":"saveEntries","entries":[{"accountId":"smoke-test","month":"2099-12","amount":400,"paidAt":123}]') || fail "sem resposta"
+check "esperava invalid_payload para paidAt numérico" "$r" 'd.ok !== true && d.error === "invalid_payload"'
+echo "  ok: marcou, manteve, desmarcou"
 
 step "saveEntries com amount null apaga a linha"
 save_entries "saveEntries null" null
