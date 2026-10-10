@@ -130,9 +130,9 @@ Cada tarefa vira um PR.
    1. Abra o link.
    2. Instale o app: no Android, menu do Chrome → "Instalar app"; no iPhone, Compartilhar → "Adicionar à Tela de Início", depois abra pelo ícone e cole o link na configuração.
    3. Em "Cadastrar contas", cadastre o Salário (Entrada, com valor padrão) e as contas da casa (Nubank, Inter, Renner, C&A, Unha…). Recorrentes, como Unha, levam valor padrão; faturas ficam sem padrão.
-   4. Volte ao Mês: o primeiro check-in pede o saldo de hoje e se as contas e o salário do mês já foram pagos e recebidos.
+   4. Volte ao Mês: o primeiro check-in pede o saldo de hoje (desde a Fase 5, só o saldo).
    5. Preencha as faturas do mês atual na tela Mês, e as dos próximos meses que ela já souber (›).
-   6. Ligue "Recebi" e "Paguei" se for o caso, e confira a sobra e os Próximos meses com ela.
+   6. Marque o check das contas já pagas e das entradas já recebidas (Fase 5) e, em seguida, confirme de novo o saldo real em "Atualizar saldo" (senão o que já tinha saído antes do primeiro saldo é descontado duas vezes). Confira a sobra e os Próximos meses com ela.
    7. Faça um "Posso comprar?" de exemplo.
    8. Em Ajustes, escolha a frequência do check-in.
 

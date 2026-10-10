@@ -35,20 +35,21 @@ Cole o `Code.gs` inteiro de novo e use *Implantar → Gerenciar implantações �
 
 O app abre pelo ícone "Contas", sem a barra do navegador.
 
-## Como o app funciona (Fases 2 a 4 e Entrega)
+## Como o app funciona (Fases 2 a 5 e Entrega)
 
 - Na primeira abertura, pede o link de configuração (abrir o link ou colar na tela; endereço `/exec` e chave só em "Configurar à mão").
 - **Primeiro uso:** planilha sem contas ativas mostra "Vamos começar?" na tela Mês, com o botão "Cadastrar contas" (leva a Ajustes), e o check-in não abre sozinho. O primeiro saldo só é pedido depois da primeira conta.
 - **Barra inferior:** Mês · Posso comprar? · Ajustes (rotas `#mes`, `#comprar`, `#ajustes`). Check-in e revisão abrem sem a barra.
-- O check-in abre sozinho 1 vez por dia (ajustável em Ajustes). "Agora não" adia até amanhã (com "Toda vez", só pula aquela abertura); "Atualizar saldo de outubro" (na tela Mês) abre à mão.
+- O check-in ("Atualizar saldo") pede só o saldo: "Como está outubro?", o campo "Na conta" e "Confirmar". Abre sozinho 1 vez por dia (ajustável em Ajustes). "Agora não" adia até amanhã (com "Toda vez", só pula aquela abertura); "Atualizar saldo de outubro" (na tela Mês) abre à mão.
 - A tela Mês tem ‹ › para trocar de mês e "Próximos meses" no mês atual. Tocar no valor edita; "Usar o valor padrão" aparece quando a conta tem padrão.
 - **Cartão do mês atual:** Na conta, **Falta receber**, Falta pagar e Sobra no fim do mês. A conta fecha: na conta + falta receber − falta pagar = sobra.
-- **Switches "Recebi" (Entradas) e "Paguei" (Contas):** só no mês atual, um toque, sem diálogo, e nunca mudam a sobra.
-  - Ligar "Recebi" transforma as entradas estimadas em lançamentos (some o "estimado") e soma o total ao "Na conta". Ligar "Paguei" faz o mesmo com as contas e desconta.
-  - Desligar faz o inverso no saldo; os lançamentos ficam.
-  - Aparece uma confirmação curta, que some com um toque (ex.: "Salário de outubro somado: + R$ 3.000,00 na conta.").
-  - Sem check-in no mês, abre o "Atualizar saldo" (`#checkin/recebi` ou `#checkin/paguei`) com a resposta já marcada.
-  - Se o valor real vier diferente do estimado, o "Atualizar saldo" corrige o "Na conta".
+- **Check por item (Fase 5):** à esquerda do nome de cada conta (pago) e de cada entrada (recebido), só no mês atual. Meses passados e futuros não têm check. Um toque, e nunca muda a sobra.
+  - Marcar passa o valor de "Falta pagar" (ou "Falta receber") para "Na conta". Se o valor era estimado, vira lançamento e o "estimado" some.
+  - Desmarcar devolve o item para "Falta pagar" (ou "Falta receber").
+  - Aparece uma confirmação curta, que some com um toque (ex.: "Nubank pago: − R$ 900,00 na conta." ou "Salário recebido: + R$ 3.000,00 na conta.").
+  - Cada marcação guarda quando foi feita (`paidAt`). O "Na conta" é o último saldo informado, mais as entradas marcadas depois dele, menos as contas marcadas depois dele. Ao informar um saldo novo, as marcações antigas deixam de mexer no "Na conta".
+  - "Usar o valor padrão" num item marcado mantém o lançamento e o check.
+  - Se ela pagar no banco, atualizar o saldo e só depois marcar o item, o valor é descontado duas vezes e a sobra aparece menor. O próximo "Atualizar saldo" corrige.
 - **Posso comprar?:** informe a parcela e a quantidade (1x a 24x) e toque em "Ver". O app responde se pode ou não, com a sobra mês a mês antes e depois da compra.
 - **Revisão semanal** (`#revisao`, botão "Revisar valores" na tela Mês): uma pergunta por vez, só sobre o mês que vem. Cada resposta é gravada na hora; a data da última revisão (`lastReviewAt`) só é gravada ao terminar. No fim mostra a sobra antes e depois.
 - **Lembrete:** a tela Mês mostra uma faixa com "Revisar agora" quando faz 7 dias ou mais sem revisar, ou quando nunca houve revisão.
@@ -115,6 +116,24 @@ No celular, com a planilha de teste (sem implantar o backend de novo):
 3. Ligue "Paguei": o "estimado" some das contas, o "Na conta" desce e a sobra fica igual.
 4. Desligue um dos dois: o "Na conta" volta, e a pergunta reaparece no "Atualizar saldo".
 
+Na Fase 5, esses switches foram substituídos pelo check por item (veja o roteiro da Fase 5).
+
+## Roteiro de conferência da Fase 5
+
+No celular, com a planilha de teste.
+
+**Pausa 1: Nova versão do script**
+
+1. Cole o `apps-script/Code.gs` inteiro de novo e use *Gerenciar implantações → Editar → Nova versão*.
+2. Abra o app uma vez. Na aba `Lancamentos`, as colunas `pago` e `pago_em` devem aparecer no fim do cabeçalho. Faça o mesmo na planilha dela, se já tiver sido criada.
+
+**Pausa 2: uso no celular**
+
+1. Na tela Mês, marque e desmarque contas e entradas, vendo o "Na conta" e a sobra.
+2. Confira que a sobra não muda ao marcar.
+3. Toque em "Atualizar saldo": ele pede só o saldo. Confirme e veja o cartão fechar (na conta + falta receber − falta pagar = sobra).
+4. Na aba `Lancamentos` da planilha, confira que o check aparece em `pago` e a data em `pago_em`.
+
 ## Entrega: planilha da esposa
 
 Passo a passo para colocar o app na mão dela. Detalhes e decisões em [`plans/delivery.md`](plans/delivery.md).
@@ -149,9 +168,9 @@ No celular dela, junto com o Fabiano:
 1. Abra o link.
 2. Instale o app. **Android:** menu do Chrome → "Instalar app". **iPhone:** Compartilhar → "Adicionar à Tela de Início", abra pelo ícone e **cole o link** na tela de configuração (o app instalado tem armazenamento separado do Safari).
 3. Toque em "Cadastrar contas" e cadastre o Salário (Entrada, com valor padrão) e as contas da casa. Recorrentes, como Unha, levam valor padrão; faturas ficam sem padrão.
-4. Volte ao Mês: o primeiro check-in pede o saldo de hoje e se as contas e o salário do mês já foram pagos e recebidos.
+4. Volte ao Mês: o primeiro check-in pede o saldo de hoje.
 5. Preencha as faturas do mês atual e as dos próximos meses que ela já souber (›).
-6. Ligue "Recebi" e "Paguei" se for o caso e confira a sobra e os Próximos meses com ela.
+6. Marque o check das contas já pagas e das entradas já recebidas no mês. Depois toque em "Atualizar saldo de outubro" e confirme de novo o saldo real do banco: o que já tinha saído antes do primeiro saldo seria descontado duas vezes sem esse passo. Confira a sobra e os Próximos meses com ela.
 7. Faça um "Posso comprar?" de exemplo.
 8. Em Ajustes, escolha a frequência do check-in.
 
@@ -164,12 +183,12 @@ Para leitura no Sheets. A API trabalha em centavos; a planilha, em reais.
 | Aba | Colunas |
 |---|---|
 | `Contas` | `id`, `nome`, `tipo` (despesa/receita), `valor_padrao`, `ordem`, `ativa` |
-| `Lancamentos` | `conta_id`, `mes`, `valor`, `atualizado_em` |
+| `Lancamentos` | `conta_id`, `mes`, `valor`, `atualizado_em`, `pago` (caixa de seleção), `pago_em` (data ISO de quando foi marcado) |
 | `Checkins` | `data`, `mes`, `saldo`, `contas_pagas`, `salario_caiu`, `sobra_prevista` |
 | `Config` | `chave`, `valor` (`frequencia_checkin`, `horizonte_meses`, `ultima_revisao`, `ambiente`) |
 
 - O mês é texto `YYYY-MM` (não deixe o Sheets converter em data).
-- Valores em reais; `ativa`, `contas_pagas` e `salario_caiu` são caixas de seleção.
+- Valores em reais; `ativa`, `pago`, `contas_pagas` e `salario_caiu` são caixas de seleção.
 - O script lê pelo cabeçalho, então dá para reordenar colunas.
 - Evite editar `id` e `conta_id` à mão sem necessidade.
 
