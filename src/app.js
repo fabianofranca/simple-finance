@@ -68,14 +68,12 @@ const ROUTES = {
   revisao: { screen: review, tab: null }
 };
 
-// Parâmetros do check-in por sufixo: auto (abertura automática) e as respostas já marcadas pelos switches da tela Mês.
+// Parâmetros do check-in por sufixo: só auto (abertura automática).
 const CHECKIN_PARAMS = {
-  auto: { auto: true },
-  paguei: { preset: 'billsPaid' },
-  recebi: { preset: 'incomeReceived' }
+  auto: { auto: true }
 };
 
-// #mes, #mes/YYYY-MM, #comprar, #ajustes, #revisao, #checkin (à mão), #checkin/auto, #checkin/paguei e #checkin/recebi (pelo app);
+// #mes, #mes/YYYY-MM, #comprar, #ajustes, #revisao, #checkin (à mão), #checkin/auto (pelo app);
 // qualquer outra coisa cai no mês atual.
 function parseRoute() {
   const [name, arg] = location.hash.replace(/^#/, '').split('/');
