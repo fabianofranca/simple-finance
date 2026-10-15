@@ -5,6 +5,7 @@ import {
   archivedAccounts,
   nextOrder,
   newAccount,
+  editAccount,
   move,
   archive,
   reactivate,
@@ -42,10 +43,39 @@ test('nextOrder conta as arquivadas; lista vazia → 1', () => {
 
 test('newAccount: nome aparado, sem id, ativa e no fim', () => {
   const a = newAccount({ name: '  Farmácia  ', type: 'expense', defaultAmount: 8000 }, sample());
-  assert.deepEqual(a, { name: 'Farmácia', type: 'expense', defaultAmount: 8000, order: 10, active: true });
+  assert.deepEqual(a, { name: 'Farmácia', type: 'expense', defaultAmount: 8000, order: 10, active: true, isCard: false });
   assert.equal('id' in a, false);
   const b = newAccount({ name: 'Extra', type: 'income' }, []);
-  assert.deepEqual(b, { name: 'Extra', type: 'income', defaultAmount: null, order: 1, active: true });
+  assert.deepEqual(b, { name: 'Extra', type: 'income', defaultAmount: null, order: 1, active: true, isCard: false });
+});
+
+test('newAccount: isCard só vale para despesa', () => {
+  assert.equal(newAccount({ name: 'Nubank', type: 'expense', isCard: true }, []).isCard, true);
+  assert.equal(newAccount({ name: 'Nubank', type: 'expense', isCard: false }, []).isCard, false);
+  assert.equal(newAccount({ name: 'Nubank', type: 'expense', isCard: 'sim' }, []).isCard, false);
+  assert.equal(newAccount({ name: 'Salário', type: 'income', isCard: true }, []).isCard, false);
+});
+
+test('editAccount: mantém id, ordem e situação; isCard ausente mantém, virar Entrada desmarca', () => {
+  const card = acc('nubank', 3, false, { isCard: true });
+  assert.deepEqual(editAccount(card, { name: ' Nubank Roxo ', type: 'expense', defaultAmount: 5000 }), {
+    ...card, name: 'Nubank Roxo', defaultAmount: 5000,
+  });
+  assert.equal(editAccount(card, { name: 'Nubank', type: 'expense', isCard: false }).isCard, false);
+  assert.equal(editAccount(card, { name: 'Nubank', type: 'income' }).isCard, false);
+  assert.equal(editAccount(acc('inter', 1), { name: 'Inter', type: 'expense' }).isCard, false, 'conta antiga sem a chave');
+  assert.equal(editAccount(acc('inter', 1), { name: 'Inter', type: 'expense', isCard: true }).isCard, true);
+  assert.equal(editAccount(card, { name: '  ', type: 'expense' }), null);
+  assert.equal(editAccount(card, { name: 'X', type: 'outro' }), null);
+  assert.equal(card.isCard, true, 'não altera a conta recebida');
+});
+
+test('archive, reactivate e move mantêm isCard', () => {
+  const card = acc('nubank', 1, true, { isCard: true });
+  assert.equal(archive(card).isCard, true);
+  assert.equal(reactivate(archive(card)).isCard, true);
+  const list = [card, acc('inter', 2)];
+  assert.equal(move(list, 'nubank', 'down').find((a) => a.id === 'nubank').isCard, true);
 });
 
 test('newAccount recusa nome vazio ou tipo inválido', () => {

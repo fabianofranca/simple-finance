@@ -5,7 +5,7 @@ import * as realApi from './api.js';
 
 const DATA_KEY = 'sf.data';
 const QUEUE_KEY = 'sf.queue';
-const SETTINGS_KEYS = ['checkinFrequency', 'horizonMonths', 'lastReviewAt'];
+const SETTINGS_KEYS = ['checkinFrequency', 'horizonMonths', 'lastReviewAt', 'purchaseListSize'];
 const RETRY_CODES = new Set(['network', 'timeout', 'busy']);
 const BASE_DELAY_MS = 2000;
 const MAX_DELAY_MS = 60000;
@@ -15,6 +15,25 @@ const clone = v => JSON.parse(JSON.stringify(v));
 function newId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
   return 'id-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+// Lançamentos com as mesmas regras do servidor: amount null apaga; `paidAt` ausente
+// mantém a marcação da linha; presente (inclusive null) substitui.
+function applyEntries(current, entries, updatedAt) {
+  const list = current.slice();
+  for (const e of entries) {
+    const i = list.findIndex(x => x.accountId === e.accountId && x.month === e.month);
+    if (e.amount === null || e.amount === undefined) {
+      if (i >= 0) list.splice(i, 1);
+    } else {
+      const row = { accountId: e.accountId, month: e.month, amount: e.amount, updatedAt };
+      if ('paidAt' in e && e.paidAt !== undefined) row.paidAt = e.paidAt;
+      else if (i >= 0 && list[i].paidAt !== undefined) row.paidAt = list[i].paidAt;
+      if (i >= 0) list[i] = row;
+      else list.push(row);
+    }
+  }
+  return list;
 }
 
 // Aplicação otimista: mesmas regras do servidor. Sempre devolve um objeto novo.
@@ -28,21 +47,18 @@ function applyOp(data, op) {
     else list.push({ ...p });
     next.accounts = list;
   } else if (op.type === 'saveEntries') {
-    const list = data.entries.slice();
-    for (const e of p) {
-      const i = list.findIndex(x => x.accountId === e.accountId && x.month === e.month);
-      if (e.amount === null || e.amount === undefined) {
-        if (i >= 0) list.splice(i, 1);
-      } else {
-        const row = { accountId: e.accountId, month: e.month, amount: e.amount, updatedAt: new Date().toISOString() };
-        // `paidAt` ausente mantém a marcação da linha; presente (inclusive null) substitui
-        if ('paidAt' in e && e.paidAt !== undefined) row.paidAt = e.paidAt;
-        else if (i >= 0 && list[i].paidAt !== undefined) row.paidAt = list[i].paidAt;
-        if (i >= 0) list[i] = row;
-        else list.push(row);
-      }
-    }
-    next.entries = list;
+    next.entries = applyEntries(data.entries, p, new Date().toISOString());
+  } else if (op.type === 'savePurchase') {
+    // upsert por id: reaplicar depois de um refresh não duplica a compra; os valores
+    // são absolutos, então reaplicar também não soma a parcela de novo
+    const { purchase, entries } = p;
+    const list = (data.purchases || []).slice();
+    const i = list.findIndex(x => x.id === purchase.id);
+    if (i >= 0) list[i] = { ...purchase };
+    else list.push({ ...purchase });
+    next.purchases = list;
+    // como o servidor: a linha leva o instante da compra (ou de quando foi desfeita)
+    next.entries = applyEntries(data.entries, entries, purchase.undoneAt ?? purchase.at);
   } else if (op.type === 'saveCheckin') {
     // deduplica por `at`: reaplicar depois de um refresh não pode duplicar
     if (!data.checkins.some(c => c.at === p.at)) next.checkins = [...data.checkins, { ...p }];
@@ -59,6 +75,8 @@ function normalize(raw) {
     accounts: Array.isArray(raw?.accounts) ? raw.accounts : [],
     entries: Array.isArray(raw?.entries) ? raw.entries : [],
     checkins: Array.isArray(raw?.checkins) ? raw.checkins : [],
+    // cache antigo (antes da Fase 6) não tem a chave
+    purchases: Array.isArray(raw?.purchases) ? raw.purchases : [],
     settings: raw?.settings && typeof raw.settings === 'object' ? raw.settings : {}
   };
 }
@@ -207,6 +225,11 @@ export function createStore({ api, storage, timers, onlineTarget } = {}) {
 
     saveCheckin(checkin) {
       enqueue({ type: 'saveCheckin', payload: checkin });
+    },
+
+    // Compra e valores numa única operação (lançar ou desfazer): `buildPurchase`/`buildUndo`
+    savePurchase({ purchase, entries }) {
+      enqueue({ type: 'savePurchase', payload: { purchase, entries } });
     },
 
     saveSettings(settings) {

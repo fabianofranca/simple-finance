@@ -29,6 +29,7 @@ function fakeApi(server = {}) {
   api.saveEntries = e => call('saveEntries', e);
   api.saveCheckin = c => call('saveCheckin', c);
   api.saveSettings = s => call('saveSettings', s);
+  api.savePurchase = p => call('savePurchase', p);
   api.loadAll = async () => {
     const snapshot = JSON.parse(JSON.stringify(api.server));
     if (api.loadAllDelay) await api.loadAllDelay;
@@ -190,6 +191,117 @@ test('saveSettings só aceita as chaves permitidas e faz merge', async () => {
   assert.deepEqual(store.getData().settings, { environment: 'test', horizonMonths: 3, checkinFrequency: 'daily' });
   await flush();
   assert.deepEqual(api.calls[0].payload, { checkinFrequency: 'daily' });
+});
+
+test('saveSettings aceita purchaseListSize', async () => {
+  const { store, api } = await loaded({ server: { settings: { horizonMonths: 3 } } });
+  store.saveSettings({ purchaseListSize: 10 });
+  assert.equal(store.getData().settings.purchaseListSize, 10);
+  await flush();
+  assert.deepEqual(api.calls[0].payload, { purchaseListSize: 10 });
+});
+
+// Compra de 3 × 150 no Nubank (1.000 em novembro) e o desfazer, como o buildPurchase/buildUndo montam.
+const purchaseAt = '2026-10-15T15:00:00.000Z';
+const undoneAt = '2026-10-16T15:00:00.000Z';
+const paidAt = '2026-10-02T10:00:00.000Z';
+const purchase = { id: 'p1', at: purchaseAt, accountId: 'a1', installment: 15000, count: 3, firstMonth: '2026-11', undoneAt: null };
+const launch = {
+  purchase,
+  entries: [
+    { accountId: 'a1', month: '2026-11', amount: 115000 },
+    { accountId: 'a1', month: '2026-12', amount: 15000 },
+    { accountId: 'a1', month: '2027-01', amount: 15000 }
+  ]
+};
+const undo = {
+  purchase: { ...purchase, undoneAt },
+  entries: [
+    { accountId: 'a1', month: '2026-11', amount: 100000 },
+    { accountId: 'a1', month: '2026-12', amount: null },
+    { accountId: 'a1', month: '2027-01', amount: null }
+  ]
+};
+const nov = { accountId: 'a1', month: '2026-11', amount: 100000, updatedAt: '2026-10-01T00:00:00.000Z', paidAt };
+
+test('savePurchase: otimista (compra e valores com updatedAt = at), mantém a marcação e envia numa chamada', async () => {
+  const { store, api, storage } = await loaded({ server: { accounts: [account], entries: [nov] } });
+  store.savePurchase(launch);
+
+  let d = store.getData();
+  assert.deepEqual(d.purchases, [purchase]);
+  assert.deepEqual(d.entries.map(e => [e.month, e.amount, e.updatedAt]), [
+    ['2026-11', 115000, purchaseAt],
+    ['2026-12', 15000, purchaseAt],
+    ['2027-01', 15000, purchaseAt]
+  ]);
+  assert.equal(d.entries[0].paidAt, paidAt, 'sem paidAt no envio: mantém a marcação');
+  assert.equal('paidAt' in d.entries[1], false);
+  assert.deepEqual(JSON.parse(storage.getItem('sf.data')).purchases, [purchase]);
+
+  await flush();
+  assert.deepEqual(api.calls, [{ type: 'savePurchase', payload: launch }]);
+
+  // desfazer: upsert por id, updatedAt = undoneAt e amount null apaga
+  store.savePurchase(undo);
+  d = store.getData();
+  assert.deepEqual(d.purchases, [{ ...purchase, undoneAt }]);
+  assert.deepEqual(d.entries.map(e => [e.month, e.amount, e.updatedAt]), [['2026-11', 100000, undoneAt]]);
+  assert.equal(d.entries[0].paidAt, paidAt);
+  await flush();
+  assert.deepEqual(api.calls.map(c => c.payload.purchase.undoneAt), [null, undoneAt]);
+});
+
+test('savePurchase reaplicado depois de um refresh não duplica a compra nem soma de novo', async () => {
+  const { store, api, timers } = await loaded({ server: { accounts: [account], entries: [nov] } });
+  api.failures.push('network');
+  store.savePurchase(launch);
+  await flush();
+  assert.equal(store.getQueueState().pending, 1);
+
+  // o servidor recebeu (a resposta é que se perdeu): já tem a compra e os valores
+  api.server.purchases = [purchase];
+  api.server.entries = [
+    { ...nov, amount: 115000, updatedAt: purchaseAt },
+    { accountId: 'a1', month: '2026-12', amount: 15000, updatedAt: purchaseAt, paidAt: null },
+    { accountId: 'a1', month: '2027-01', amount: 15000, updatedAt: purchaseAt, paidAt: null }
+  ];
+  await store.refresh();
+  const d = store.getData();
+  assert.equal(d.purchases.length, 1);
+  assert.deepEqual(d.entries.map(e => [e.month, e.amount]), [['2026-11', 115000], ['2026-12', 15000], ['2027-01', 15000]]);
+  assert.equal(d.entries[0].paidAt, paidAt);
+
+  // a nova tentativa envia; a fila esvazia
+  timers.fireNext();
+  await flush();
+  assert.equal(store.getQueueState().pending, 0);
+
+  // e um desfazer que saiu da fila durante a busca também não duplica
+  let release;
+  api.loadAllDelay = new Promise(r => { release = r; });
+  const pending = store.refresh();
+  store.savePurchase(undo);
+  await flush();
+  assert.equal(store.getQueueState().pending, 0, 'saiu da fila antes de a busca terminar');
+  api.server.purchases = [{ ...purchase, undoneAt }];
+  release();
+  await pending;
+  assert.deepEqual(store.getData().purchases, [{ ...purchase, undoneAt }]);
+});
+
+test('cache antigo sem purchases: normaliza para [] e savePurchase funciona', async () => {
+  const storage = memoryStorage({ 'sf.data': JSON.stringify({ accounts: [account], entries: [], checkins: [], settings: {} }) });
+  const { store } = setup({ storage });
+  assert.deepEqual(store.getData().purchases, []);
+  store.savePurchase(launch);
+  assert.equal(store.getData().purchases.length, 1);
+  await flush();
+
+  // servidor antigo (sem a chave) também vira []
+  const old = await loaded({ server: { accounts: [account] } });
+  delete old.api.server.purchases;
+  assert.deepEqual((await old.store.refresh()).purchases, []);
 });
 
 test('check-in reaplicado não duplica (deduplicado por at)', async () => {
@@ -366,7 +478,7 @@ test('refresh substitui o cache pelos dados do servidor e descarta campos de tra
   const { store, api, storage } = await loaded();
   api.server.accounts = [account];
   const d = await store.refresh();
-  assert.deepEqual(Object.keys(d).sort(), ['accounts', 'checkins', 'entries', 'settings']);
+  assert.deepEqual(Object.keys(d).sort(), ['accounts', 'checkins', 'entries', 'purchases', 'settings']);
   assert.equal(JSON.parse(storage.getItem('sf.data')).accounts.length, 1);
 });
 
