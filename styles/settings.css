@@ -15,6 +15,8 @@
 .account-btn { background: transparent; color: inherit; font-weight: 400; border-radius: 8px; }
 .account-name { max-width: 100%; overflow-wrap: anywhere; }
 .account-meta { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Etiqueta "cartão" ao lado do nome */
+.card-tag { display: inline-block; margin-left: 8px; padding: 1px 8px; border: 1px solid var(--accent); border-radius: 999px; color: var(--accent); font-size: .75rem; font-weight: 600; line-height: 1.4; vertical-align: 1px; white-space: nowrap; }
 .arrow { flex: none; width: 44px; height: 44px; min-height: 44px; padding: 0; background: transparent; color: var(--accent); font-size: 1.25rem; line-height: 1; border: 1px solid var(--line); }
 .arrow:disabled { opacity: .3; }
 .st-add { margin-top: 12px; }
@@ -38,6 +40,9 @@
 .step-btn:disabled { opacity: .3; border-color: var(--line); }
 .step-value { min-width: 2.5ch; text-align: center; font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+/* Últimas compras: "Mostrar as últimas" logo abaixo da lista */
+.st-list-size { margin-top: 16px; }
+
 /* Conexão */
 .st-url { margin: 0 0 12px; color: var(--fg); overflow-wrap: anywhere; }
 
@@ -47,6 +52,9 @@
 .account-title { margin: 0 0 8px; font-size: 1.1rem; }
 .account-dialog label, .account-dialog .field-label { display: block; font-size: .9rem; margin: 12px 0 4px; }
 .account-dialog input { font-variant-numeric: tabular-nums; }
+/* "É cartão de crédito": a linha inteira é o alvo do toque (≥ 44px) */
+.account-dialog .account-card { display: flex; align-items: center; gap: 12px; min-height: 44px; margin: 12px 0 0; font-size: 1rem; font-weight: 600; cursor: pointer; }
+.account-dialog .account-card input { flex: none; width: 24px; height: 24px; min-height: 0; margin: 0 0 0 4px; padding: 0; accent-color: var(--accent); cursor: pointer; }
 .account-error { margin: 8px 0 0; color: var(--err); font-size: .9rem; }
 .account-actions { display: flex; gap: 8px; margin-top: 16px; }
 .account-actions button { flex: 1; }
