@@ -1,4 +1,4 @@
-// Contas na tela Ajustes: ordem, reordenar, nova conta, arquivar e reativar.
+// Contas na tela Ajustes: ordem, reordenar, nova conta, edição, arquivar e reativar.
 // Módulo puro: devolve cópias, nunca altera as contas recebidas.
 
 const TYPES = ['expense', 'income'];
@@ -26,8 +26,9 @@ export function nextOrder(accounts) {
 }
 
 // Conta nova no fim da lista, sem `id` (o store gera).
+// `isCard` ("É cartão de crédito") só vale para despesa; nos outros casos fica false.
 // Nome vazio (depois de aparar) ou tipo inválido → null.
-export function newAccount({ name, type, defaultAmount } = {}, accounts) {
+export function newAccount({ name, type, defaultAmount, isCard } = {}, accounts) {
   const trimmed = typeof name === 'string' ? name.trim() : '';
   if (!trimmed || !TYPES.includes(type)) return null;
   return {
@@ -36,6 +37,23 @@ export function newAccount({ name, type, defaultAmount } = {}, accounts) {
     defaultAmount: Number.isInteger(defaultAmount) ? defaultAmount : null,
     order: nextOrder(accounts),
     active: true,
+    isCard: type === 'expense' && isCard === true,
+  };
+}
+
+// Conta editada (nome, tipo, valor padrão e, opcionalmente, `isCard`), mantendo id, ordem,
+// situação e o que mais houver. `isCard` ausente mantém a marcação; virar Entrada desmarca.
+// Nome vazio (depois de aparar) ou tipo inválido → null.
+export function editAccount(account, { name, type, defaultAmount, isCard } = {}) {
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  if (!account || !trimmed || !TYPES.includes(type)) return null;
+  const card = isCard === undefined ? account.isCard === true : isCard === true;
+  return {
+    ...account,
+    name: trimmed,
+    type,
+    defaultAmount: Number.isInteger(defaultAmount) ? defaultAmount : null,
+    isCard: type === 'expense' && card,
   };
 }
 
