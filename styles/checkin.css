@@ -1,5 +1,6 @@
 /* Tela Check-in. Usa os tokens de styles/app.css. */
 .checkin h1 { margin-bottom: 24px; }
+.checkin .checkin-intro { margin: -16px 0 24px; }
 .checkin-row { margin-bottom: 24px; }
 .checkin-row > label { display: block; margin: 0 0 8px; font-size: 1rem; font-weight: 600; color: var(--fg); }
 

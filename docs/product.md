@@ -40,7 +40,7 @@ Na conta:            R$ 500,00   [alterar]
 ```
 
 - **Quando abre sozinha:** sem nenhum check-in, sempre (é a base do cálculo). Com "toda vez", a cada abertura do app. Com "1x por dia", se o último check-in não foi hoje. Com "1x por semana", se faz 7 dias ou mais do último. O app confere ao abrir e quando volta para a frente da tela. Se já existe check-in, ela pode tocar em "Agora não", e o app só pergunta de novo no dia seguinte (com "toda vez", na próxima abertura do app).
-- "Na conta" vem preenchido com o saldo que o cartão do mês mostra, e ela confirma ou altera. É o saldo em conta, sem desconto nenhum. Sem check-in anterior, o campo vem vazio e é obrigatório.
+- "Na conta" vem preenchido com o saldo que o cartão do mês mostra, e ela confirma ou altera. É o saldo em conta, sem desconto nenhum. Sem check-in anterior, o campo vem vazio (sem o "0,00" de exemplo, que parecia saldo zerado) e é obrigatório; a tela pergunta "Quanto tem na conta hoje?" e explica "É o ponto de partida das contas do mês.", já que não tem como sair dela.
 - O check-in pergunta **só o saldo**. O que foi pago ou recebido é marcado item a item na tela Mês (Fase 5); as perguntas "Já paguei / Já caiu" das fases anteriores saíram.
 - **Educativo:** ao confirmar, se a sobra prevista do mês caiu em relação ao check-in anterior do mesmo mês, a tela Mês mostra um aviso como "Sua sobra de outubro caiu R$ 120,00 desde 03/10", que some com um toque.
 
