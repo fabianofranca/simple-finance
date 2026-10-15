@@ -9,10 +9,12 @@
 //    Executar como: eu | Acesso: qualquer pessoa.
 // 4. Copie a URL que termina em /exec (não use a /dev).
 // 5. A primeira chamada (ex.: "Testar conexão") cria as abas Contas, Lancamentos,
-//    Checkins e Config, com cabeçalhos e formatos.
-//    Padrões da Config: check-in 1x por dia (diaria) e horizonte de 3 meses.
-//    Em planilha que já existe, as colunas novas do script (ex.: pago e pago_em, da aba
-//    Lancamentos) entram sozinhas no fim do cabeçalho na primeira chamada, sem mexer nos dados.
+//    Checkins, Compras e Config, com cabeçalhos e formatos.
+//    Padrões da Config: check-in 1x por dia (diaria), horizonte de 3 meses e 5 compras
+//    na lista de Últimas compras.
+//    Em planilha que já existe, as abas novas (ex.: Compras) são criadas e as colunas novas
+//    do script (ex.: pago e pago_em, da aba Lancamentos; cartao, da aba Contas) entram
+//    sozinhas no fim do cabeçalho na primeira chamada, sem mexer nos dados.
 // 6. Só na planilha de TESTE: na aba Config, adicione a linha  ambiente | teste
 //    (libera seed e reset). Na planilha da esposa essa linha não existe.
 //
@@ -25,23 +27,36 @@
 //
 // Contrato:
 //   GET  ?key=...
-//     -> { ok, accounts, entries, checkins, settings }
-//        accounts : [{ id, name, type: 'expense'|'income', defaultAmount: int|null, order, active }]
+//     -> { ok, accounts, entries, checkins, purchases, settings }
+//        accounts : [{ id, name, type: 'expense'|'income', defaultAmount: int|null, order, active,
+//                      isCard: boolean }]
 //        entries  : [{ accountId, month, amount, updatedAt, paidAt: ISO|null }]
 //                   (paidAt = quando o item foi marcado como pago/recebido; null = sem marcação)
 //        checkins : [{ at, month, balance, billsPaid, incomeReceived, projectedBalance }]
+//        purchases: [{ id, at, accountId, installment, count, firstMonth, undoneAt: ISO|null }]
+//                   (compras lançadas pelo "Vou comprar"; installment em centavos)
 //        settings : { checkinFrequency: 'always'|'daily'|'weekly', horizonMonths,
-//                     lastReviewAt: string|null, environment: 'test'|'production' }
+//                     purchaseListSize, lastReviewAt: string|null,
+//                     environment: 'test'|'production' }
 //   POST { key, action: 'ping' }                                  -> { ok, time }
 //   POST { key, action: 'saveAccount', account: {...} }           -> { ok }   (upsert por id)
+//        isCard opcional: chave ausente mantém a marcação da linha existente (conta nova
+//        fica false); conta de receita grava sempre false
 //   POST { key, action: 'saveEntries', entries: [{accountId, month, amount, paidAt?}] }
 //                                                                  -> { ok, saved }
 //        (upsert por conta + mês; amount null apaga a linha)
 //        paidAt: string ISO marca o item; null desmarca; chave ausente mantém a marcação
 //        da linha existente (lançamento novo sem a chave fica sem marcação)
 //   POST { key, action: 'saveCheckin', checkin: {...} }           -> { ok }   (append; idempotente por `at`)
+//   POST { key, action: 'savePurchase', purchase: {...}, entries: [...] } -> { ok }
+//        purchase: { id, at: ISO, accountId, installment: int > 0, count: 1..24,
+//                    firstMonth: 'YYYY-MM', undoneAt: ISO|null }
+//        entries : [{ accountId, month, amount, paidAt? }] (1 a 24, todos da conta da compra)
+//        Upsert da compra por id (lançar e desfazer usam o mesmo id) e os valores com as regras
+//        do saveEntries, só que com atualizado_em = undoneAt ?? at. Tudo numa chamada:
+//        payload inválido não grava nada, e reenviar a mesma operação dá o mesmo resultado.
 //   POST { key, action: 'saveSettings', settings: {...} }         -> { ok }
-//        (só checkinFrequency, horizonMonths e lastReviewAt)
+//        (só checkinFrequency, horizonMonths, purchaseListSize e lastReviewAt)
 //   POST { key, action: 'seed' }                                  -> { ok }   (só ambiente = teste)
 //   POST { key, action: 'reset' }                                 -> { ok }   (só ambiente = teste)
 //   Erros: { ok: false, error } com unauthorized, invalid_json, unknown_action,
@@ -62,7 +77,8 @@ const SHEETS = {
       { name: 'tipo', kind: 'text' },
       { name: 'valor_padrao', kind: 'money' },
       { name: 'ordem', kind: 'number' },
-      { name: 'ativa', kind: 'bool' }
+      { name: 'ativa', kind: 'bool' },
+      { name: 'cartao', kind: 'bool' }
     ]
   },
   Lancamentos: {
@@ -87,6 +103,19 @@ const SHEETS = {
       { name: 'sobra_prevista', kind: 'money' }
     ]
   },
+  // Compras lançadas pelo "Vou comprar"; desfazer marca desfeita_em (a linha nunca é apagada)
+  Compras: {
+    key: 'id',
+    columns: [
+      { name: 'id', kind: 'text' },
+      { name: 'data', kind: 'text' },
+      { name: 'conta_id', kind: 'text' },
+      { name: 'parcela', kind: 'money' },
+      { name: 'parcelas', kind: 'number' },
+      { name: 'primeiro_mes', kind: 'text' },
+      { name: 'desfeita_em', kind: 'text' }
+    ]
+  },
   Config: {
     key: 'chave',
     columns: [
@@ -99,6 +128,7 @@ const SHEETS = {
 const CONFIG_DEFAULTS = [
   ['frequencia_checkin', 'diaria'],
   ['horizonte_meses', '3'],
+  ['compras_na_lista', '5'],
   ['ultima_revisao', '']
 ];
 
@@ -108,6 +138,8 @@ const TYPE_TO_API = { despesa: 'expense', receita: 'income' };
 const TYPE_TO_SHEET = { expense: 'despesa', income: 'receita' };
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+const MAX_PURCHASE_COUNT = 24;
+const MAX_PURCHASE_LIST_SIZE = 20;
 
 // ---------------------------------------------------------------------------
 // Entrada
@@ -145,6 +177,7 @@ function doPost(e) {
         case 'saveAccount': return saveAccount(body.account);
         case 'saveEntries': return saveEntries(body.entries);
         case 'saveCheckin': return saveCheckin(body.checkin);
+        case 'savePurchase': return savePurchase(body.purchase, body.entries);
         case 'saveSettings': return saveSettings(body.settings);
         case 'seed': return seed();
         case 'reset': return reset();
@@ -404,6 +437,7 @@ function readAll() {
   const contas = loadTable('Contas');
   const lanc = loadTable('Lancamentos');
   const checks = loadTable('Checkins');
+  const compras = loadTable('Compras');
   const config = loadTable('Config');
 
   const accounts = contas.rows.map(function (r) {
@@ -417,7 +451,8 @@ function readAll() {
       type: TYPE_TO_API[tipo],
       defaultAmount: readMoney(r.v.valor_padrao),
       order: ordem,
-      active: readBool(r.v.ativa)
+      active: readBool(r.v.ativa),
+      isCard: readBool(r.v.cartao)
     };
   });
 
@@ -449,7 +484,29 @@ function readAll() {
     };
   });
 
-  return { ok: true, accounts: accounts, entries: entries, checkins: checkins, settings: readSettings(config) };
+  const purchases = compras.rows.map(function (r) {
+    const installment = readMoney(r.v.parcela);
+    const count = r.v.parcelas === '' ? NaN : Number(r.v.parcelas);
+    const firstMonth = readText(r.v.primeiro_mes);
+    if (installment === null || !Number.isInteger(count) || count < 1 || !MONTH_RE.test(firstMonth)) {
+      fail('bad_sheet_data');
+    }
+    const undoneAt = readText(r.v.desfeita_em);
+    return {
+      id: readText(r.v.id),
+      at: readText(r.v.data),
+      accountId: readText(r.v.conta_id),
+      installment: installment,
+      count: count,
+      firstMonth: firstMonth,
+      undoneAt: undoneAt === '' ? null : undoneAt
+    };
+  });
+
+  return {
+    ok: true, accounts: accounts, entries: entries, checkins: checkins, purchases: purchases,
+    settings: readSettings(config)
+  };
 }
 
 function readSettings(config) {
@@ -462,9 +519,14 @@ function readSettings(config) {
   const horizon = map.horizonte_meses ? Number(map.horizonte_meses) : 3;
   if (!Number.isInteger(horizon) || horizon < 1) fail('bad_sheet_data');
 
+  // planilha anterior à Fase 6 não tem a linha: vale o padrão (o saveSettings cria a linha)
+  const listSize = map.compras_na_lista ? Number(map.compras_na_lista) : 5;
+  if (!Number.isInteger(listSize) || listSize < 1) fail('bad_sheet_data');
+
   return {
     checkinFrequency: FREQ_TO_API[freqSheet],
     horizonMonths: horizon,
+    purchaseListSize: listSize,
     lastReviewAt: map.ultima_revisao ? map.ultima_revisao : null,
     environment: map.ambiente === 'teste' ? 'test' : 'production'
   };
@@ -511,6 +573,11 @@ function checkIsoOrNull(v) {
   return v;
 }
 
+function checkIso(v) {
+  if (v === null) invalid();
+  return checkIsoOrNull(v);
+}
+
 function checkMonth(v) {
   if (typeof v !== 'string' || !MONTH_RE.test(v)) invalid();
   return v;
@@ -525,7 +592,10 @@ function validateAccount(a) {
     type: a.type,
     defaultAmount: checkIntOrNull(a.defaultAmount),
     order: checkInt(a.order),
-    active: checkBool(a.active)
+    active: checkBool(a.active),
+    // isCard é opcional: o app antigo não manda a chave
+    hasIsCard: 'isCard' in a,
+    isCard: 'isCard' in a ? checkBool(a.isCard) : false
   };
 }
 
@@ -539,6 +609,25 @@ function validateEntries(list, accountIds) {
     if (out.hasPaidAt) out.paidAt = checkIsoOrNull(e.paidAt);
     return out;
   });
+}
+
+function validatePurchase(p, accountIds) {
+  if (!isPlainObject(p)) invalid();
+  const accountId = checkString(p.accountId);
+  if (!accountIds[accountId]) invalid();
+  const installment = checkInt(p.installment);
+  if (installment <= 0) invalid();
+  const count = checkInt(p.count);
+  if (count < 1 || count > MAX_PURCHASE_COUNT) invalid();
+  return {
+    id: checkString(p.id),
+    at: checkIso(p.at),
+    accountId: accountId,
+    installment: installment,
+    count: count,
+    firstMonth: checkMonth(p.firstMonth),
+    undoneAt: checkIsoOrNull(p.undoneAt) // obrigatório: ISO ou null
+  };
 }
 
 function validateCheckin(c) {
@@ -568,6 +657,10 @@ function validateSettings(s) {
       if (!Number.isInteger(v) || v < 1) invalid();
       return ['horizonte_meses', String(v)];
     }
+    if (k === 'purchaseListSize') {
+      if (!Number.isInteger(v) || v < 1 || v > MAX_PURCHASE_LIST_SIZE) invalid();
+      return ['compras_na_lista', String(v)];
+    }
     if (k === 'lastReviewAt') {
       if (v !== null && typeof v !== 'string') invalid();
       return ['ultima_revisao', v === null ? '' : v];
@@ -587,7 +680,8 @@ function accountRow(a) {
     tipo: TYPE_TO_SHEET[a.type],
     valor_padrao: a.defaultAmount === null ? '' : toReais(a.defaultAmount),
     ordem: a.order,
-    ativa: a.active
+    ativa: a.active,
+    cartao: a.isCard
   };
 }
 
@@ -595,17 +689,31 @@ function saveAccount(payload) {
   const a = validateAccount(payload);
   const table = loadTable('Contas');
   const found = table.rows.filter(function (r) { return readText(r.v.id) === a.id; })[0];
+  // receita nunca é cartão; sem a chave, mantém o que estava (conta nova: false)
+  if (a.type === 'income') a.isCard = false;
+  else if (!a.hasIsCard) a.isCard = found ? readBool(found.v.cartao) : false;
   if (found) updateRow(table, found, accountRow(a));
   else appendRows(table, [accountRow(a)]);
   return { ok: true };
 }
 
-function saveEntries(payload) {
-  const contas = loadTable('Contas');
-  const accountIds = {};
-  contas.rows.forEach(function (r) { accountIds[readText(r.v.id)] = true; });
-  const list = validateEntries(payload, accountIds);
+// { id: true } das contas da planilha
+function accountIdSet() {
+  const ids = {};
+  loadTable('Contas').rows.forEach(function (r) { ids[readText(r.v.id)] = true; });
+  return ids;
+}
 
+function saveEntries(payload) {
+  const list = validateEntries(payload, accountIdSet());
+  const saved = applyEntries(loadTable('Lancamentos'), list, new Date().toISOString());
+  return { ok: true, saved: saved };
+}
+
+// Aplica lançamentos já validados (upsert por conta + mês; amount null apaga a linha).
+// stamp vai em atualizado_em: o relógio do servidor no saveEntries, at/undoneAt no savePurchase.
+// Devolve quantas chaves (conta + mês) distintas foram tratadas.
+function applyEntries(table, list, stamp) {
   // se a mesma chave aparecer duas vezes no payload, vale a última
   const wanted = {};
   const order = [];
@@ -615,14 +723,12 @@ function saveEntries(payload) {
     wanted[k] = e;
   });
 
-  const table = loadTable('Lancamentos');
   const existing = {};
   table.rows.forEach(function (r) {
     const k = readText(r.v.conta_id) + '|' + readText(r.v.mes);
     if (!(k in existing)) existing[k] = r;
   });
 
-  const now = new Date().toISOString();
   const toDelete = [];
   const toAppend = [];
   order.forEach(function (k) {
@@ -631,7 +737,7 @@ function saveEntries(payload) {
     if (row) {
       if (e.amount === null) toDelete.push(row.row);
       else {
-        const changes = { valor: toReais(e.amount), atualizado_em: now };
+        const changes = { valor: toReais(e.amount), atualizado_em: stamp };
         // paidAt ausente mantém a marcação que já estava na linha
         if (e.hasPaidAt) {
           changes.pago = e.paidAt !== null;
@@ -641,7 +747,7 @@ function saveEntries(payload) {
       }
     } else if (e.amount !== null) {
       toAppend.push({
-        conta_id: e.accountId, mes: e.month, valor: toReais(e.amount), atualizado_em: now,
+        conta_id: e.accountId, mes: e.month, valor: toReais(e.amount), atualizado_em: stamp,
         pago: e.hasPaidAt && e.paidAt !== null, pago_em: e.hasPaidAt && e.paidAt !== null ? e.paidAt : ''
       });
     }
@@ -650,7 +756,37 @@ function saveEntries(payload) {
   // apaga de baixo para cima para os números de linha não se deslocarem
   toDelete.sort(function (a, b) { return b - a; }).forEach(function (r) { table.sheet.deleteRow(r); });
   appendRows(table, toAppend);
-  return { ok: true, saved: order.length };
+  return order.length;
+}
+
+// Compra do "Vou comprar" (lançar ou desfazer) e os valores do cartão, numa chamada só
+function savePurchase(purchasePayload, entriesPayload) {
+  // valida tudo antes de escrever qualquer coisa
+  const accountIds = accountIdSet();
+  const p = validatePurchase(purchasePayload, accountIds);
+  if (Array.isArray(entriesPayload) && entriesPayload.length > MAX_PURCHASE_COUNT) invalid();
+  const list = validateEntries(entriesPayload, accountIds);
+  list.forEach(function (e) { if (e.accountId !== p.accountId) invalid(); });
+
+  // lê as duas abas antes de gravar: planilha inconsistente não deixa nada pela metade
+  const compras = loadTable('Compras');
+  const lanc = loadTable('Lancamentos');
+
+  const row = {
+    id: p.id,
+    data: p.at,
+    conta_id: p.accountId,
+    parcela: toReais(p.installment),
+    parcelas: p.count,
+    primeiro_mes: p.firstMonth,
+    desfeita_em: p.undoneAt === null ? '' : p.undoneAt
+  };
+  const found = compras.rows.filter(function (r) { return readText(r.v.id) === p.id; })[0];
+  if (found) updateRow(compras, found, row);
+  else appendRows(compras, [row]);
+
+  applyEntries(lanc, list, p.undoneAt === null ? p.at : p.undoneAt);
+  return { ok: true };
 }
 
 function saveCheckin(payload) {
@@ -697,12 +833,12 @@ function upsertConfig(pairs) {
 const SEED = {
   checkin: { balance: 3000, billsPaid: false, incomeReceived: true },
   accounts: [
-    { id: 'nubank',  name: 'Nubank',  type: 'expense', defaultAmount: null,   order: 1 },
-    { id: 'inter',   name: 'Inter',   type: 'expense', defaultAmount: null,   order: 2 },
-    { id: 'renner',  name: 'Renner',  type: 'expense', defaultAmount: null,   order: 3 },
-    { id: 'cea',     name: 'C&A',     type: 'expense', defaultAmount: null,   order: 4 },
-    { id: 'unha',    name: 'Unha',    type: 'expense', defaultAmount: 150,    order: 5 },
-    { id: 'salario', name: 'Salário', type: 'income',  defaultAmount: 3000,   order: 6 }
+    { id: 'nubank',  name: 'Nubank',  type: 'expense', defaultAmount: null, order: 1, isCard: true },
+    { id: 'inter',   name: 'Inter',   type: 'expense', defaultAmount: null, order: 2, isCard: true },
+    { id: 'renner',  name: 'Renner',  type: 'expense', defaultAmount: null, order: 3, isCard: true },
+    { id: 'cea',     name: 'C&A',     type: 'expense', defaultAmount: null, order: 4, isCard: true },
+    { id: 'unha',    name: 'Unha',    type: 'expense', defaultAmount: 150,  order: 5, isCard: false },
+    { id: 'salario', name: 'Salário', type: 'income',  defaultAmount: 3000, order: 6, isCard: false }
   ],
   entries: {
     nubank: [900, 1000, 1200, 2000, 1000, 900],
@@ -726,7 +862,7 @@ function reset() {
 function resetData() {
   // lê tudo antes de apagar: se a planilha estiver inconsistente, nada é perdido pela metade
   const config = loadTable('Config');
-  const tables = ['Contas', 'Lancamentos', 'Checkins'].map(loadTable);
+  const tables = ['Contas', 'Lancamentos', 'Checkins', 'Compras'].map(loadTable);
   const ambiente = config.rows.filter(function (r) { return readText(r.v.chave).trim() === 'ambiente'; })[0];
   const ambienteValue = ambiente ? readText(ambiente.v.valor) : null;
 
@@ -755,7 +891,7 @@ function seed() {
     return accountRow({
       id: a.id, name: a.name, type: a.type,
       defaultAmount: a.defaultAmount === null ? null : toCents(a.defaultAmount),
-      order: a.order, active: true
+      order: a.order, active: true, isCard: a.isCard
     });
   });
   appendRows(loadTable('Contas'), accountRows);
