@@ -39,7 +39,9 @@ export function mount(el, ctx) {
     const answers = { balance: form.balance };
     const name = monthName(form.month);
 
-    const title = h('h1', { text: `Como está ${name}?` });
+    // Primeiro saldo (nenhum check-in ainda): obrigatório e sem saída, então a tela explica o porquê.
+    const title = h('h1', { text: hasPrevious ? `Como está ${name}?` : 'Quanto tem na conta hoje?' });
+    const intro = hasPrevious ? null : h('p', { class: 'checkin-intro', text: 'É o ponto de partida das contas do mês.' });
 
     // Saldo: campo de texto com teclado decimal; "±" troca o sinal (o teclado do iPhone não tem "-").
     const input = h('input', {
@@ -47,8 +49,9 @@ export function mount(el, ctx) {
       type: 'text',
       inputmode: 'decimal',
       autocomplete: 'off',
-      placeholder: '0,00',
     });
+    // Sem placeholder no primeiro saldo: um "0,00" cinza parecia saldo zerado.
+    if (hasPrevious) input.placeholder = '0,00';
     if (form.balance !== null) input.value = formatInput(form.balance);
     selectOnFocus(input);
     const sign = h('button', { type: 'button', class: 'sign', 'aria-label': 'Trocar o sinal', text: '±' });
@@ -103,7 +106,7 @@ export function mount(el, ctx) {
       actions.append(back);
     }
 
-    el.replaceChildren(h('section', { class: 'checkin' }, title, balanceBox, actions));
+    el.replaceChildren(h('section', { class: 'checkin' }, ...[title, intro, balanceBox, actions].filter(Boolean)));
     refresh();
   }
 
