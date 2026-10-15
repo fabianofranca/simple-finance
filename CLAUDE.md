@@ -34,6 +34,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `plans/phase-4.md`: plano da Fase 4 (usabilidade).
 - `plans/delivery.md`: plano da Entrega.
 - `plans/phase-5.md`: plano da Fase 5 (pago por item).
+- `plans/phase-6.md`: plano da Fase 6 (Vou comprar).
 - `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `ping`, e `seed`/`reset` só com `ambiente = teste`. Lançamentos têm `paidAt` (marcação de pago/recebido) e colunas novas entram sozinhas em planilhas existentes (migração automática). Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
 - `index.html`: o app (casca, faixa de aviso, manifest e metas de iOS).
 - `dev.html` + `src/dev.js` + `styles.css`: painel de desenvolvimento (fora do app; mesma config e cache; gera chave e link de configuração).
@@ -67,6 +68,8 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - [x] Plano da Entrega escrito (plans/delivery.md)
 - [x] Plano da Fase 5 escrito (plans/phase-5.md)
 - [ ] Fase 5: marcação de pago por item na tela Mês e "Atualizar saldo" só com o saldo
+- [x] Plano da Fase 6 escrito (plans/phase-6.md)
+- [ ] Fase 6: "Vou comprar" no Posso comprar? e Últimas compras com desfazer em Ajustes
 - [ ] Entrega: planilha da esposa, link de configuração, primeiro uso e carga real
 
 ## Como trabalhar neste repo

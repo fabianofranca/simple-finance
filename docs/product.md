@@ -1,6 +1,6 @@
 # Especificação de produto — App de Contas
 
-Fonte de verdade das decisões de produto para as Fases 1 a 5 e a Entrega. Mudou alguma regra? Atualize este arquivo antes do código.
+Fonte de verdade das decisões de produto para as Fases 1 a 6 e a Entrega. Mudou alguma regra? Atualize este arquivo antes do código.
 
 ## Problema
 
@@ -24,7 +24,8 @@ No começo, a decisão foi que ela não marcaria conta por conta como paga. Na F
 
 ## Conceitos
 
-- **Conta:** nome livre, tipo (despesa ou receita; salário é receita), valor padrão opcional (para recorrentes como salário e unha), ordem e situação (ativa ou arquivada). Não tem dia de vencimento nem categoria.
+- **Conta:** nome livre, tipo (despesa ou receita; salário é receita), valor padrão opcional (para recorrentes como salário e unha), ordem e situação (ativa ou arquivada). Uma conta de despesa pode ser marcada como **cartão de crédito**, que é onde o "Vou comprar" lança as parcelas (Fase 6). Não tem dia de vencimento nem categoria.
+- **Compra:** registro de um "Vou comprar": cartão, valor da parcela, número de parcelas, primeiro mês e, se for o caso, quando foi desfeita.
 - **Lançamento:** valor de uma conta num mês de pagamento. Pode estar marcado como pago (conta) ou recebido (entrada), com o momento em que foi marcado.
 - **Valor efetivo** de uma conta no mês: o lançamento, se existir. Se não existir, o valor padrão, exibido em cinza como estimativa. Se também não houver valor padrão, 0. Conta arquivada não usa valor padrão, mas os lançamentos dela continuam valendo.
 - **R(m)** e **D(m):** soma dos valores efetivos das receitas e das despesas do mês `m`.
@@ -68,7 +69,13 @@ Caso obrigatório: R = 1.500 e D = 1.000 dão sobra de 500; no mês seguinte, R 
 - Mostra os próximos H meses (horizonte configurável, padrão 3) com a sobra depois da compra.
 - Verifica **todos** os meses até max(H, n), inclusive além do horizonte exibido. Se algum ficar negativo, a resposta é um "Não pode" explícito, citando o primeiro mês negativo e quanto falta: "Não pode: em dezembro fica faltando R$ 100".
 - Se a projeção já era negativa sem a compra, o app diz isso.
-- **Só simula, não grava nada.** Quando ela atualiza a fatura com o valor do app do banco, a parcela já vem incluída. Se o app gravasse a compra, ela seria contada duas vezes.
+- **Ver só simula.** Com "Pode comprar", aparece o botão **"Vou comprar"** (Fase 6), que pergunta em qual cartão e **soma a parcela no valor do cartão** em cada mês da compra. Mês estimado vira lançamento.
+- **Por que não conta duas vezes:** a parcela entra no valor da fatura, e não numa linha à parte. Quando ela atualiza a fatura com o valor do app do banco, o valor novo substitui o anterior, que já tinha a parcela.
+- **Desfazer** fica em Ajustes, na lista das últimas compras:
+  - a confirmação diz o valor que sai ("R$ 150,00 por mês será removido do Nubank, de novembro a janeiro.");
+  - se algum mês mudou depois da compra, subtrai mesmo assim e avisa para conferir;
+  - nenhum mês fica negativo;
+  - um mês que volta ao valor de antes da compra volta a "estimado" (ou "—").
 
 ## Atualização semanal guiada
 
@@ -117,10 +124,12 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
   - Campos "Valor da parcela" (teclado numérico) e "Parcelas" (− n +, de 1 a 24, começa em 1), e o botão "Ver".
   - Resposta grande: "Pode comprar" ou "Não pode", com o primeiro mês negativo e quanto falta. Se a previsão já fica negativa sem a compra, o app diz isso antes.
   - Lista dos próximos H meses com a sobra antes → depois da compra, negativos em vermelho.
+  - Com "Pode comprar", o botão "Vou comprar" abre "Em qual cartão?", com um botão por cartão ativo (um toque lança) e "Cancelar". Sem cartão marcado: "Marque quais contas são cartão em Ajustes." e "Ir para Ajustes". Depois de lançar, a faixa confirma ("Lançado no Nubank: 3 parcelas de R$ 150,00, de novembro a janeiro.") e o formulário volta ao início.
 - **Ajustes:**
-  - Contas: lista das ativas na ordem, com nome, tipo e valor padrão. Tocar abre a edição (nome, "Conta" ou "Entrada", valor padrão opcional). Setas ↑↓ mudam a ordem. "Arquivar" em vez de excluir, com confirmação; o histórico nunca é apagado. Seção "Arquivadas", recolhida, com "Reativar". "Nova conta" pede nome, tipo e valor padrão opcional e entra no fim da lista.
+  - Contas: lista das ativas na ordem, com nome, tipo e valor padrão (cartões com a etiqueta "cartão"). Tocar abre a edição (nome, "Conta" ou "Entrada", valor padrão opcional e, numa Conta, "É cartão de crédito"). Setas ↑↓ mudam a ordem. "Arquivar" em vez de excluir, com confirmação; o histórico nunca é apagado. Seção "Arquivadas", recolhida, com "Reativar". "Nova conta" pede nome, tipo e valor padrão opcional e entra no fim da lista.
   - Check-in: "Toda vez", "1x por dia" ou "1x por semana".
   - Próximos meses: horizonte de 1 a 12 meses, usado no Mês e no Posso comprar?.
+  - Últimas compras: as N mais recentes lançadas pelo "Vou comprar" e ainda não desfeitas, com valor × parcelas, cartão, data e meses, e o botão "Desfazer". N vai de 1 a 20, com padrão 5. Além do limite, a compra some da lista, mas continua na aba Compras da planilha.
   - Conexão: o endereço da planilha resumido e "Trocar planilha", com confirmação (apaga URL, chave e dados guardados no aparelho e volta para a configuração).
   - Tudo grava em segundo plano, com o mesmo aviso de gravação da tela Mês.
 
@@ -142,8 +151,9 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
 | 3 | Posso comprar?, revisão semanal guiada, Ajustes, barra inferior e lembrete. Plano: `plans/phase-3.md` |
 | 4 — usabilidade | "Falta receber" no cartão do mês e switches "Recebi"/"Paguei" na tela Mês. Plano: `plans/phase-4.md` |
 | 5 — pago por item | Check por item na tela Mês (substitui os switches) e "Atualizar saldo" só com o saldo. Plano: `plans/phase-5.md` |
+| 6 — vou comprar | "Vou comprar" no Posso comprar? (lança as parcelas no cartão) e Últimas compras com desfazer em Ajustes. Plano: `plans/phase-6.md` |
 | Entrega | Planilha da esposa, link de configuração, primeiro uso e carga real. Plano: `plans/delivery.md` |
 
 ## Fora do escopo
 
-Lançamento compra a compra, categorias, data de vencimento, push, gravar compras simuladas e importação de histórico.
+Lançamento compra a compra (fora o "Vou comprar", que só soma a parcela na fatura), nome da compra, categorias, data de vencimento, push e importação de histórico.
