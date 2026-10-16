@@ -1,8 +1,9 @@
-// Tela Ajustes: contas, frequência do check-in, horizonte dos próximos meses e conexão.
-// Regras de ordem e arquivo em src/accounts.js; dinheiro sempre por src/money.js.
-import { activeAccounts, archivedAccounts, archive, move, newAccount, reactivate } from '../accounts.js';
+// Tela Ajustes: contas, frequência do check-in, horizonte dos próximos meses, últimas compras e conexão.
+// Regras de ordem e arquivo em src/accounts.js; compras em src/purchases.js; dinheiro sempre por src/money.js.
+import { activeAccounts, archivedAccounts, archive, editAccount, move, newAccount, reactivate } from '../accounts.js';
 import { clearConfig, loadConfig, shortUrl } from '../config.js';
 import { formatInput, formatMoney, parseMoney } from '../money.js';
+import { buildUndo, recentPurchases } from '../purchases.js';
 import { confirmDialog, h, queueLine, selectOnFocus } from './ui.js';
 
 const FREQUENCIES = [
@@ -15,13 +16,21 @@ const DEFAULT_FREQUENCY = 'daily';
 const DEFAULT_HORIZON = 3;
 const MIN_HORIZON = 1;
 const MAX_HORIZON = 12;
+const DEFAULT_LIST_SIZE = 5;
+const MIN_LIST_SIZE = 1;
+const MAX_LIST_SIZE = 20;
 
 const typeLabel = (type) => (type === 'income' ? 'Entrada' : 'Conta');
+const isCard = (account) => account.type === 'expense' && account.isCard === true;
 
-function currentHorizon(settings) {
-  const n = Number(settings?.horizonMonths);
-  return Number.isInteger(n) && n >= MIN_HORIZON && n <= MAX_HORIZON ? n : DEFAULT_HORIZON;
+// Inteiro de min a max; fora disso (ou ausente), o padrão.
+function inRange(value, min, max, fallback) {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= min && n <= max ? n : fallback;
 }
+
+const currentHorizon = (settings) => inRange(settings?.horizonMonths, MIN_HORIZON, MAX_HORIZON, DEFAULT_HORIZON);
+const currentListSize = (settings) => inRange(settings?.purchaseListSize, MIN_LIST_SIZE, MAX_LIST_SIZE, DEFAULT_LIST_SIZE);
 
 export function mount(el, ctx) {
   const { store } = ctx;
@@ -61,6 +70,16 @@ export function mount(el, ctx) {
     });
     amount.value = account && Number.isInteger(account.defaultAmount) ? formatInput(account.defaultAmount) : '';
     selectOnFocus(amount);
+    // "É cartão de crédito": só para Conta. Com Entrada fica escondida (e não vale no salvar),
+    // mas guarda a marcação se ela voltar para Conta antes de salvar.
+    const card = h('input', { id: 'account-card', type: 'checkbox' });
+    card.checked = Boolean(account && isCard(account));
+    const cardField = h(
+      'label',
+      { class: 'account-card', for: 'account-card', hidden: type !== 'expense' },
+      card,
+      'É cartão de crédito'
+    );
     const error = h('p', { class: 'account-error', role: 'alert', hidden: true });
 
     const typeButtons = TYPES.map((value) =>
@@ -73,6 +92,7 @@ export function mount(el, ctx) {
           onclick: () => {
             type = value;
             TYPES.forEach((t, i) => typeButtons[i].setAttribute('aria-pressed', String(t === type)));
+            cardField.hidden = type !== 'expense';
           }
         },
         typeLabel(value)
@@ -103,6 +123,7 @@ export function mount(el, ctx) {
       h('div', { class: 'seg', role: 'group', 'aria-labelledby': 'account-type-label' }, ...typeButtons),
       h('label', { for: 'account-amount' }, 'Valor padrão (opcional)'),
       amount,
+      cardField,
       error,
       h(
         'div',
@@ -144,11 +165,17 @@ export function mount(el, ctx) {
         }
       }
       const accounts = store.getData()?.accounts || [];
+      const fields = { name: trimmed, type, defaultAmount, isCard: type === 'expense' && card.checked };
       if (account) {
         const current = accounts.find((a) => a.id === account.id) || account;
-        store.saveAccount({ ...current, name: trimmed, type, defaultAmount });
+        const edited = editAccount(current, fields);
+        if (!edited) {
+          showError('Escreva o nome da conta.', name);
+          return;
+        }
+        store.saveAccount(edited);
       } else {
-        const created = newAccount({ name: trimmed, type, defaultAmount }, accounts);
+        const created = newAccount(fields, accounts);
         if (!created) {
           showError('Escreva o nome da conta.', name);
           return;
@@ -204,6 +231,34 @@ export function mount(el, ctx) {
     store.saveSettings({ horizonMonths: value });
   }
 
+  function setListSize(value) {
+    if (value < MIN_LIST_SIZE || value > MAX_LIST_SIZE) return;
+    store.saveSettings({ purchaseListSize: value });
+  }
+
+  // Desfazer: confirma com o texto do buildUndo (valor que sai e meses que mudaram) e,
+  // se ela confirmar, recalcula com os dados de agora (podem ter mudado durante a pergunta).
+  // Compra já desfeita (ou que sumiu) não quebra a tela: só redesenha a lista.
+  async function undoPurchase(id) {
+    let plan;
+    try {
+      plan = buildUndo(store.getData(), ctx.now(), id);
+    } catch {
+      render();
+      return;
+    }
+    const ok = await confirmDialog(plan.message, 'Desfazer');
+    if (!ok || !alive) return;
+    try {
+      plan = buildUndo(store.getData(), ctx.now(), id);
+    } catch {
+      render();
+      return;
+    }
+    store.savePurchase({ purchase: plan.purchase, entries: plan.entries });
+    ctx.notify('Compra desfeita.');
+  }
+
   async function switchSheet() {
     const pending = store.getQueueState().pending;
     const text =
@@ -235,6 +290,7 @@ export function mount(el, ctx) {
       const meta = `${typeLabel(account.type)} · ${
         Number.isInteger(account.defaultAmount) ? formatMoney(account.defaultAmount) : 'sem valor padrão'
       }`;
+      const card = isCard(account);
       return h(
         'li',
         { class: 'st-row' },
@@ -244,10 +300,10 @@ export function mount(el, ctx) {
             type: 'button',
             class: 'account-btn',
             'data-account': account.id,
-            'aria-label': `Editar ${account.name}. ${meta}`,
+            'aria-label': `Editar ${account.name}${card ? ', cartão' : ''}. ${meta}`,
             onclick: () => openAccountDialog(account)
           },
-          h('span', { class: 'account-name' }, account.name),
+          h('span', { class: 'account-name' }, account.name, card && h('span', { class: 'card-tag' }, 'cartão')),
           h('span', { class: 'account-meta' }, meta)
         ),
         h('button', {
@@ -353,32 +409,96 @@ export function mount(el, ctx) {
     );
   }
 
+  // Controle − n + (Próximos meses e Últimas compras). Os aria-labels são únicos na tela:
+  // é por eles que o foco volta ao botão depois de redesenhar.
+  function stepper({ value, min, max, label, less, more, onChange }) {
+    return h(
+      'div',
+      { class: 'stepper', role: 'group', 'aria-label': label },
+      h('button', {
+        type: 'button',
+        class: 'step-btn',
+        'aria-label': less,
+        disabled: value <= min,
+        onclick: () => onChange(value - 1)
+      }, '−'),
+      h('span', { class: 'step-value', 'aria-live': 'polite' }, String(value)),
+      h('button', {
+        type: 'button',
+        class: 'step-btn',
+        'aria-label': more,
+        disabled: value >= max,
+        onclick: () => onChange(value + 1)
+      }, '+')
+    );
+  }
+
   function horizonSection(settings) {
-    const n = currentHorizon(settings);
     return h(
       'section',
       { class: 'st-section' },
       h('h2', {}, 'Próximos meses'),
       h('p', { class: 'st-note' }, 'Quantos meses aparecem no Mês e na tela Posso comprar?'),
-      h(
-        'div',
-        { class: 'stepper', role: 'group', 'aria-label': 'Quantidade de meses' },
-        h('button', {
-          type: 'button',
-          class: 'step-btn',
-          'aria-label': 'Menos um mês',
-          disabled: n <= MIN_HORIZON,
-          onclick: () => setHorizon(n - 1)
-        }, '−'),
-        h('span', { class: 'step-value', 'aria-live': 'polite' }, String(n)),
-        h('button', {
-          type: 'button',
-          class: 'step-btn',
-          'aria-label': 'Mais um mês',
-          disabled: n >= MAX_HORIZON,
-          onclick: () => setHorizon(n + 1)
-        }, '+')
-      )
+      stepper({
+        value: currentHorizon(settings),
+        min: MIN_HORIZON,
+        max: MAX_HORIZON,
+        label: 'Quantidade de meses',
+        less: 'Menos um mês',
+        more: 'Mais um mês',
+        onChange: setHorizon
+      })
+    );
+  }
+
+  // Últimas compras lançadas pelo "Vou comprar" e ainda não desfeitas, cada uma com "Desfazer".
+  function purchasesSection(data, settings) {
+    const size = currentListSize(settings);
+    const items = recentPurchases(data, size);
+    const list = items.length
+      ? h(
+          'ul',
+          { class: 'st-list' },
+          ...items.map((item) =>
+            h(
+              'li',
+              { class: 'st-row' },
+              h(
+                'span',
+                { class: 'account-static' },
+                h('span', { class: 'account-name' }, item.title),
+                h('span', { class: 'account-meta' }, item.detail)
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  class: 'link',
+                  'data-purchase': item.id,
+                  'aria-label': `Desfazer ${item.title}`,
+                  onclick: () => undoPurchase(item.id)
+                },
+                'Desfazer'
+              )
+            )
+          )
+        )
+      : h('p', { class: 'st-note' }, 'Nenhuma compra lançada pelo Posso comprar?.');
+    return h(
+      'section',
+      { class: 'st-section' },
+      h('h2', {}, 'Últimas compras'),
+      list,
+      h('p', { class: 'st-note st-list-size' }, 'Mostrar as últimas'),
+      stepper({
+        value: size,
+        min: MIN_LIST_SIZE,
+        max: MAX_LIST_SIZE,
+        label: 'Quantidade de compras na lista',
+        less: 'Mostrar uma compra a menos',
+        more: 'Mostrar uma compra a mais',
+        onChange: setListSize
+      })
     );
   }
 
@@ -399,6 +519,7 @@ export function mount(el, ctx) {
     node.getAttribute('data-account') ||
     node.getAttribute('data-move') ||
     node.getAttribute('data-new-account') ||
+    node.getAttribute('data-purchase') ||
     node.getAttribute('aria-label') ||
     node.textContent;
 
@@ -420,6 +541,7 @@ export function mount(el, ctx) {
       ...accountsSection(data),
       checkinSection(settings),
       horizonSection(settings),
+      purchasesSection(data, settings),
       connectionSection()
     );
 
