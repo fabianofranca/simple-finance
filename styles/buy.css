@@ -30,3 +30,15 @@
 .buy-arrow { color: var(--muted); }
 .buy-values .money { font-variant-numeric: tabular-nums; }
 .buy-values .money.neg { color: var(--err); font-weight: 600; }
+
+/* "Vou comprar" e "Em qual cartão?" (Fase 6) */
+.buy h1:focus { outline: none; } /* recebe o foco depois de lançar, sem moldura */
+.buy-action { margin-top: 12px; }
+.buy-commit { width: 100%; }
+.buy-pick { padding-top: 12px; border-top: 1px solid var(--line); }
+.buy-card p.buy-pick-title { margin: 0 0 12px; color: var(--fg); font-weight: 600; }
+.buy-pick-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.buy-pick-card { width: 100%; background: transparent; color: var(--accent); border: 1px solid var(--accent); overflow-wrap: anywhere; }
+.buy-card .buy-pick-empty p { margin: 0 0 12px; color: var(--fg); }
+.buy-pick-settings { width: 100%; }
+.buy-pick-cancel { width: 100%; margin-top: 8px; background: transparent; color: var(--muted); font-weight: 500; }
