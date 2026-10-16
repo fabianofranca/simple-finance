@@ -68,9 +68,9 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - [x] Fase 4 executada: "Falta receber", switches "Recebi"/"Paguei" com um toque e campos que selecionam o valor; validado no celular
 - [x] Plano da Entrega escrito (plans/delivery.md)
 - [x] Plano da Fase 5 escrito (plans/phase-5.md)
-- [ ] Fase 5: marcação de pago por item na tela Mês e "Atualizar saldo" só com o saldo
+- [x] Fase 5 executada: marcação de pago por item na tela Mês e "Atualizar saldo" só com o saldo; validado no celular
 - [x] Plano da Fase 6 escrito (plans/phase-6.md)
-- [ ] Fase 6: "Vou comprar" no Posso comprar? e Últimas compras com desfazer em Ajustes
+- [x] Fase 6 executada: "Vou comprar" no Posso comprar? e Últimas compras com desfazer em Ajustes; validado no celular
 - [ ] Entrega: planilha da esposa, link de configuração, primeiro uso e carga real
 
 ## Como trabalhar neste repo
