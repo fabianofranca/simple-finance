@@ -1,6 +1,6 @@
 # Simple Finance
 
-App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-4.md`](plans/phase-4.md).
+App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-6.md`](plans/phase-6.md).
 
 - **`index.html` é o app** (Mês, Check-in, Posso comprar?, Revisar valores e Ajustes).
 - **`dev.html` é o painel de desenvolvimento**: mesmo site, mesma configuração e mesmo cache. Abra em `…/simple-finance/dev.html`.
@@ -17,6 +17,8 @@ App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar d
 ## Atualizar o backend
 
 Cole o `Code.gs` inteiro de novo e use *Implantar → Gerenciar implantações → Editar → Nova versão*. Assim a URL continua a mesma; uma nova implantação gera URL nova.
+
+Abas e colunas novas do script entram sozinhas na primeira chamada depois da Nova versão, sem mexer nos dados (ex.: `pago` e `pago_em` da Fase 5; aba `Compras` e coluna `cartao` da Fase 6).
 
 ## Planilha de teste × planilha da esposa
 
@@ -35,7 +37,7 @@ Cole o `Code.gs` inteiro de novo e use *Implantar → Gerenciar implantações �
 
 O app abre pelo ícone "Contas", sem a barra do navegador.
 
-## Como o app funciona (Fases 2 a 5 e Entrega)
+## Como o app funciona (Fases 2 a 6 e Entrega)
 
 - Na primeira abertura, pede o link de configuração (abrir o link ou colar na tela; endereço `/exec` e chave só em "Configurar à mão").
 - **Primeiro uso:** planilha sem contas ativas mostra "Vamos começar?" na tela Mês, com o botão "Cadastrar contas" (leva a Ajustes), e o check-in não abre sozinho. O primeiro saldo só é pedido depois da primeira conta.
@@ -50,14 +52,30 @@ O app abre pelo ícone "Contas", sem a barra do navegador.
   - Cada marcação guarda quando foi feita (`paidAt`). O "Na conta" é o último saldo informado, mais as entradas marcadas depois dele, menos as contas marcadas depois dele. Ao informar um saldo novo, as marcações antigas deixam de mexer no "Na conta".
   - "Usar o valor padrão" num item marcado mantém o lançamento e o check.
   - Se ela pagar no banco, atualizar o saldo e só depois marcar o item, o valor é descontado duas vezes e a sobra aparece menor. O próximo "Atualizar saldo" corrige.
-- **Posso comprar?:** informe a parcela e a quantidade (1x a 24x) e toque em "Ver". O app responde se pode ou não, com a sobra mês a mês antes e depois da compra.
+- **Posso comprar?:** informe a parcela e a quantidade (1x a 24x) e toque em "Ver". O app responde se pode ou não, com a sobra mês a mês antes e depois da compra. "Ver" só simula.
+- **Vou comprar (Fase 6):** só aparece com "Pode comprar". Com "Não pode", não há botão.
+  - O toque pergunta "Em qual cartão?", com um botão por cartão ativo (na ordem das contas) e "Cancelar". Um toque no cartão lança, sem confirmação extra: dá para desfazer em Ajustes.
+  - Sem nenhum cartão marcado, aparece "Marque quais contas são cartão em Ajustes." com o botão "Ir para Ajustes".
+  - Lançar soma a parcela no valor do cartão em cada mês da compra: os mesmos meses da simulação, a partir do mês seguinte. Mês estimado vira lançamento (padrão + parcela) e o "estimado" some. A marcação de pago fica como está.
+  - **Por que não conta duas vezes:** a parcela entra no valor da fatura, e não numa linha à parte. Quando ela atualiza a fatura com o valor do app do banco (na tela Mês ou na revisão), o valor novo substitui o anterior, que já tinha a parcela.
+  - Depois de lançar, a faixa confirma ("Lançado no Nubank: 3 parcelas de R$ 150,00, de novembro a janeiro.") e o formulário volta ao início (valor vazio e 1x).
+  - A compra e os valores do cartão vão numa chamada só (`savePurchase`), para nunca ficar metade gravada. A compra vira uma linha na aba `Compras`.
 - **Revisão semanal** (`#revisao`, botão "Revisar valores" na tela Mês): uma pergunta por vez, só sobre o mês que vem. Cada resposta é gravada na hora; a data da última revisão (`lastReviewAt`) só é gravada ao terminar. No fim mostra a sobra antes e depois.
 - **Lembrete:** a tela Mês mostra uma faixa com "Revisar agora" quando faz 7 dias ou mais sem revisar, ou quando nunca houve revisão.
 - **Ajustes:**
   - Entradas e Contas em listas separadas; ↑ e ↓ reordenam dentro do mesmo tipo.
   - "Nova conta", tocar na conta para editar, "Arquivar" (o histórico continua guardado) e "Reativar" em "Arquivadas".
+  - **"É cartão de crédito":** na edição de uma Conta (some com "Entrada"). Marca onde o "Vou comprar" pode lançar. Na lista, os cartões têm a etiqueta "cartão".
   - Frequência do check-in: "Toda vez", "1x por dia" ou "1x por semana".
   - Próximos meses: de 1 a 12, vale também para o Posso comprar?.
+  - **Últimas compras (Fase 6):** as compras mais recentes lançadas pelo "Vou comprar" e ainda não desfeitas, da mais nova para a mais antiga.
+    - Cada item: "R$ 150,00 × 3 · Nubank" (com 1 parcela, sem o "× 1") e "Lançada em 15/10 · novembro a janeiro", com o botão "Desfazer". Lista vazia: "Nenhuma compra lançada pelo Posso comprar?.".
+    - "Mostrar as últimas" (− n +): de 1 a 20, padrão 5. Além do limite, a compra some da lista, mas continua na aba `Compras`; só não dá mais para desfazer pelo app.
+    - "Desfazer" confirma com o valor que sai: "R$ 150,00 por mês será removido do Nubank, de novembro a janeiro." (com 1 parcela: "R$ 150,00 será removido do Nubank em novembro.").
+    - Se algum mês mudou depois da compra (ex.: ela editou a fatura), subtrai mesmo assim e avisa na mesma confirmação: "O valor de novembro mudou depois da compra. Confira depois.".
+    - Nenhum mês fica negativo: se a subtração passar de zero, fica em 0.
+    - Mês que fica com o valor que teria sem lançamento (o padrão, ou 0 sem padrão) e não está marcado como pago perde o lançamento: volta a "estimado", ou a "—".
+    - Depois de desfazer, a compra sai da lista, a faixa avisa "Compra desfeita." e, na planilha, a linha ganha `desfeita_em` (nunca é apagada).
   - "Trocar planilha" apaga do aparelho o endereço, a chave, os dados em cache e as gravações ainda não enviadas, e volta à configuração.
 - Estados de gravação: "Salvando…" e "Sem internet, vou tentar de novo".
 
@@ -134,6 +152,30 @@ No celular, com a planilha de teste.
 3. Toque em "Atualizar saldo": ele pede só o saldo. Confirme e veja o cartão fechar (na conta + falta receber − falta pagar = sobra).
 4. Na aba `Lancamentos` da planilha, confira que o check aparece em `pago` e a data em `pago_em`.
 
+## Roteiro de conferência da Fase 6
+
+No celular, com a planilha de teste.
+
+**Pausa 1: Nova versão do script**
+
+1. Cole o `apps-script/Code.gs` inteiro de novo e use *Gerenciar implantações → Editar → Nova versão*.
+2. Abra o app uma vez. Devem aparecer a aba `Compras` (vazia, com o cabeçalho `id`, `data`, `conta_id`, `parcela`, `parcelas`, `primeiro_mes`, `desfeita_em`) e a coluna `cartao` no fim do cabeçalho de `Contas`, desmarcada. Faça o mesmo na planilha dela, se já tiver sido criada.
+3. A linha `compras_na_lista` da `Config` ainda não aparece: ela só entra quando o limite for mudado em Ajustes (até lá o app usa 5). Numa planilha nova, ou depois de "Gerar massa de teste"/"Apagar tudo", ela já vem.
+
+**Pausa 2: marcar os cartões**
+
+1. Em Ajustes, toque em cada cartão (Nubank, Inter, Renner, C&A), marque "É cartão de crédito" e salve. Na lista aparece a etiqueta "cartão" e, na aba `Contas`, a caixa `cartao` fica marcada. A massa de teste já vem com os quatro marcados.
+2. Confira que a opção some ao trocar o tipo para "Entrada".
+
+**Pausa 3: uso no celular**
+
+1. Em Posso comprar?, simule uma compra que cabe (ex.: R$ 150,00 em 3x), toque em "Vou comprar" e escolha o Nubank. A faixa confirma o lançamento e o formulário volta ao início.
+2. Na tela Mês, vá de novembro a janeiro (›): o Nubank tem R$ 150,00 a mais em cada mês, e o que era "estimado" ou "—" virou lançamento. O mês atual não muda.
+3. Simule uma compra que não cabe: não aparece "Vou comprar".
+4. Em Ajustes → Últimas compras, toque em "Desfazer" na compra: a confirmação mostra o valor e os meses. Confirme e veja os valores voltarem na tela Mês (mês sem lançamento antes volta a "estimado" ou "—"). Na aba `Compras`, a linha continua lá, com `desfeita_em` preenchido.
+5. Lance outra compra, edite na tela Mês o valor do cartão num dos meses dela e desfaça a compra: a confirmação avisa "O valor de … mudou depois da compra. Confira depois.".
+6. Com duas compras na lista, mude "Mostrar as últimas" para 1: só a mais recente aparece, e a outra continua na aba `Compras`. Volte para 5 e confira a linha `compras_na_lista` na `Config`.
+
 ## Entrega: planilha da esposa
 
 Passo a passo para colocar o app na mão dela. Detalhes e decisões em [`plans/delivery.md`](plans/delivery.md).
@@ -167,11 +209,11 @@ No celular dela, junto com o Fabiano:
 
 1. Abra o link.
 2. Instale o app. **Android:** menu do Chrome → "Instalar app". **iPhone:** Compartilhar → "Adicionar à Tela de Início", abra pelo ícone e **cole o link** na tela de configuração (o app instalado tem armazenamento separado do Safari).
-3. Toque em "Cadastrar contas" e cadastre o Salário (Entrada, com valor padrão) e as contas da casa. Recorrentes, como Unha, levam valor padrão; faturas ficam sem padrão.
+3. Toque em "Cadastrar contas" e cadastre o Salário (Entrada, com valor padrão) e as contas da casa. Recorrentes, como Unha, levam valor padrão; faturas ficam sem padrão. Nos cartões, marque "É cartão de crédito".
 4. Volte ao Mês: o primeiro check-in pede o saldo de hoje.
 5. Preencha as faturas do mês atual e as dos próximos meses que ela já souber (›).
 6. Marque o check das contas já pagas e das entradas já recebidas no mês. Depois toque em "Atualizar saldo de outubro" e confirme de novo o saldo real do banco: o que já tinha saído antes do primeiro saldo seria descontado duas vezes sem esse passo. Confira a sobra e os Próximos meses com ela.
-7. Faça um "Posso comprar?" de exemplo.
+7. Faça um "Posso comprar?" de exemplo. "Vou comprar" lança de verdade: se tocar só para mostrar, desfaça em Ajustes → Últimas compras.
 8. Em Ajustes, escolha a frequência do check-in.
 
 **Atenção:** abrir o link dela no celular do Fabiano troca a planilha daquele aparelho (o app pergunta antes e apaga os dados guardados ali). Para voltar à de teste, abra o link de teste ou use "Trocar planilha" em Ajustes.
@@ -182,13 +224,18 @@ Para leitura no Sheets. A API trabalha em centavos; a planilha, em reais.
 
 | Aba | Colunas |
 |---|---|
-| `Contas` | `id`, `nome`, `tipo` (despesa/receita), `valor_padrao`, `ordem`, `ativa` |
+| `Contas` | `id`, `nome`, `tipo` (despesa/receita), `valor_padrao`, `ordem`, `ativa`, `cartao` (caixa de seleção, "É cartão de crédito") |
 | `Lancamentos` | `conta_id`, `mes`, `valor`, `atualizado_em`, `pago` (caixa de seleção), `pago_em` (data ISO de quando foi marcado) |
 | `Checkins` | `data`, `mes`, `saldo`, `contas_pagas`, `salario_caiu`, `sobra_prevista` |
-| `Config` | `chave`, `valor` (`frequencia_checkin`, `horizonte_meses`, `ultima_revisao`, `ambiente`) |
+| `Compras` | `id`, `data` (ISO de quando foi lançada), `conta_id` (o cartão), `parcela`, `parcelas`, `primeiro_mes`, `desfeita_em` (ISO ou vazio) |
+| `Config` | `chave`, `valor` (`frequencia_checkin`, `horizonte_meses`, `compras_na_lista`, `ultima_revisao`, `ambiente`) |
 
 - O mês é texto `YYYY-MM` (não deixe o Sheets converter em data).
-- Valores em reais; `ativa`, `pago`, `contas_pagas` e `salario_caiu` são caixas de seleção.
+- Valores em reais; `ativa`, `cartao`, `pago`, `contas_pagas` e `salario_caiu` são caixas de seleção.
+- `cartao` vale só para despesa: numa receita o script grava sempre desmarcado.
+- `Compras` guarda cada "Vou comprar". Desfazer preenche `desfeita_em`; a linha nunca é apagada. Compras além do limite da lista em Ajustes continuam aqui, para consulta.
+- Nos meses da compra, o `atualizado_em` do lançamento do cartão é o `data` da compra (ou o `desfeita_em`, ao desfazer). É assim que o app percebe que um mês mudou depois da compra.
+- `compras_na_lista` (1 a 20) é o tamanho da lista de Últimas compras. Numa planilha que já existia antes da Fase 6, a linha só aparece quando o limite for mudado em Ajustes (até lá o app usa 5); numa planilha nova, ou depois de seed/reset, ela já vem.
 - O script lê pelo cabeçalho, então dá para reordenar colunas.
 - Evite editar `id` e `conta_id` à mão sem necessidade.
 
@@ -207,8 +254,9 @@ Ela mostra só lançamentos, sem os valores padrão.
 - Node ≥ 22.7. Testes: `node --test` na raiz (sem npm).
 - Servir local: `python3 -m http.server 8000` e abra `http://localhost:8000`.
 - Smoke test: `cp .env.example .env` e preencha `APPS_SCRIPT_URL` e `APPS_SCRIPT_KEY` (o `.env` está no `.gitignore`).
-  - `./scripts/smoke-test.sh`: modo padrão, não destrutivo.
-  - `SMOKE_FULL=1 ./scripts/smoke-test.sh`: só na planilha de teste. Apaga tudo, roda a suíte completa e termina com a massa de exemplo. Nunca aponte para a planilha da esposa.
+  - `./scripts/smoke-test.sh`: modo padrão, não destrutivo. Usa a conta arquivada "smoke-test" e lançamentos em 2099. Não grava compra, porque as linhas da aba `Compras` não se apagam pela API: só confere que um `savePurchase` inválido não grava nada.
+  - `SMOKE_FULL=1 ./scripts/smoke-test.sh`: só na planilha de teste. Apaga tudo, roda a suíte completa (inclusive lançar, reenviar e desfazer uma compra em 2099) e termina com a massa de exemplo. Nunca aponte para a planilha da esposa.
+  - Os dois modos falham com uma dica se o script publicado ainda não é o da Fase 6.
 
 ## Ícones
 

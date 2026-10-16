@@ -35,7 +35,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `plans/delivery.md`: plano da Entrega.
 - `plans/phase-5.md`: plano da Fase 5 (pago por item).
 - `plans/phase-6.md`: plano da Fase 6 (Vou comprar).
-- `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `ping`, e `seed`/`reset` só com `ambiente = teste`. Lançamentos têm `paidAt` (marcação de pago/recebido) e colunas novas entram sozinhas em planilhas existentes (migração automática). Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
+- `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, compras, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `savePurchase` (compra e valores do cartão numa chamada só, para lançar e desfazer), `ping`, e `seed`/`reset` só com `ambiente = teste`. Lançamentos têm `paidAt` (marcação de pago/recebido); contas têm `isCard` (coluna `cartao`); a aba `Compras` guarda cada "Vou comprar" (desfazer preenche `desfeita_em`, a linha nunca é apagada). Abas e colunas novas entram sozinhas em planilhas existentes (migração automática). Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
 - `index.html`: o app (casca, faixa de aviso, manifest e metas de iOS).
 - `dev.html` + `src/dev.js` + `styles.css`: painel de desenvolvimento (fora do app; mesma config e cache; gera chave e link de configuração).
 - `src/config.js`: URL e chave no `localStorage`; `parseConfigLink`/`buildConfigLink`/`sameConfig`/`generateKey` (link de configuração).
@@ -43,9 +43,10 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `src/store.js`: cache local e fila de gravação em segundo plano; `clear()` apaga dados e fila (trocar planilha).
 - `src/forecast.js`: cálculo do fluxo de caixa (módulo puro), incluindo `pendingTotals`/`effectiveBalance` (o que falta pagar/receber e o "Na conta" com os checks por item).
 - `src/app.js`: roteador por hash (`#mes`, `#mes/AAAA-MM`, `#comprar`, `#ajustes`, `#revisao`, `#checkin`, `#checkin/auto`, `#conectar?u=…&k=…` do link de configuração), barra inferior (Mês · Posso comprar? · Ajustes), faixa de aviso e abertura automática do check-in.
-- `src/screens/`: telas `setup.js` (configuração), `month.js` (Mês), `checkin.js` (Check-in), `buy.js` (Posso comprar?), `review.js` (Revisão) e `settings.js` (Ajustes), no contrato `mount(el, ctx)` → `unmount()`.
+- `src/screens/`: telas `setup.js` (configuração), `month.js` (Mês), `checkin.js` (Check-in), `buy.js` (Posso comprar?, com o "Vou comprar"), `review.js` (Revisão) e `settings.js` (Ajustes, com "É cartão de crédito" e Últimas compras), no contrato `mount(el, ctx)` → `unmount()`.
 - `src/screens/ui.js`: helpers de tela (`h`, `money`, `queueLine`, `confirmDialog`).
-- `src/money.js`, `src/checkin.js`, `src/month-view.js`, `src/buy-view.js`, `src/review.js`, `src/accounts.js`: lógica pura das telas (dinheiro pt-BR, regras do check-in, o que a tela Mês exibe, resposta do Posso comprar?, perguntas e lembrete da revisão, ordem e arquivo das contas).
+- `src/money.js`, `src/checkin.js`, `src/month-view.js`, `src/buy-view.js`, `src/review.js`, `src/accounts.js`: lógica pura das telas (dinheiro pt-BR, regras do check-in, o que a tela Mês exibe, resposta do Posso comprar?, perguntas e lembrete da revisão, ordem, arquivo e edição das contas com `editAccount`).
+- `src/purchases.js`: lógica pura do "Vou comprar" e das Últimas compras (`cardAccounts`, `buildPurchase`, `recentPurchases`, `buildUndo`).
 - `styles/`: `app.css` (tokens e base), `month.css`, `checkin.css`, `buy.css`, `review.css`, `settings.css`.
 - `manifest.webmanifest` + `icons/`: app instalável na tela inicial (`icon.svg` é a fonte dos PNGs).
 - `tests/`: testes com `node --test`.

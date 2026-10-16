@@ -155,7 +155,7 @@ Cada tarefa vira um PR.
 
 ## Pausas obrigatórias (ações manuais do Fabiano)
 1. **Depois do merge da T1 e antes da T2,** publique a Nova versão do script (*Gerenciar implantações → Editar → Nova versão*, colando o `Code.gs` inteiro) na planilha de teste. Faça o mesmo na dela, se já existir.
-   - Para conferir, depois da primeira chamada do app devem aparecer a aba Compras, a coluna `cartao` em Contas e a linha `compras_na_lista` em Config.
+   - Para conferir, depois da primeira chamada do app devem aparecer a aba Compras e a coluna `cartao` em Contas. A linha `compras_na_lista` da Config só entra numa planilha que já existe quando o limite for mudado em Ajustes (até lá o app usa 5).
 2. **Depois do merge da T4,** marque os cartões em Ajustes ("É cartão de crédito"), na planilha de teste e, na entrega, na dela.
 3. **No fim, no celular, com a planilha de teste:**
    - simular, tocar em "Vou comprar", escolher o cartão e ver os meses no Mês;
