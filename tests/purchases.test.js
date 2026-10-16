@@ -300,7 +300,7 @@ test('recentPurchases: textos prontos da lista', () => {
     { id: 'virada', at: local(2026, 12, 2).toISOString(), accountId: 'velho', installment: reais(10), count: 2, firstMonth: '2027-01', undoneAt: null },
     { id: 'sumida', at: local(2026, 9, 2).toISOString(), accountId: 'apagada', installment: reais(10), count: 1, firstMonth: '2026-10', undoneAt: null },
   ];
-  const velho = { ...nubank, id: 'velho', name: 'Cartão velho', active: false };
+  const velho = { ...nubank, id: 'velho', name: 'Cartão velho', order: 2 };
   const list = recentPurchases(sample({ accounts: [nubank, velho], purchases }), 10);
   const byId = Object.fromEntries(list.map((x) => [x.id, x]));
 
@@ -313,9 +313,30 @@ test('recentPurchases: textos prontos da lista', () => {
   assert.equal(byId.uma.title, `${R(89.9)} · Nubank`);
   assert.equal(byId.uma.detail, 'Lançada em 14/10 · novembro');
 
-  // arquivada mantém o nome; meses relativos ao mês em que foi lançada
+  // meses relativos ao mês em que foi lançada
   assert.equal(byId.virada.title, `${R(10)} × 2 · Cartão velho`);
   assert.equal(byId.virada.detail, 'Lançada em 02/12 · janeiro de 2027 a fevereiro de 2027');
 
-  assert.equal(byId.sumida.title, `${R(10)} · Conta removida`);
+  // compra de conta que não existe fica de fora
+  assert.equal(byId.sumida, undefined);
+  assert.deepEqual(list.map((x) => x.id), ['virada', 'tres', 'uma']);
+});
+
+test('recentPurchases: ignora compras de cartão arquivado ou excluído; reativar faz voltar', () => {
+  const p = (id, accountId, day) => ({
+    id, at: local(2026, 10, day).toISOString(), accountId, installment: reais(150), count: 3, firstMonth: '2026-11', undoneAt: null,
+  });
+  const inter = { ...nubank, id: 'inter', name: 'Inter', order: 2 };
+  const renner = { ...nubank, id: 'renner', name: 'Renner', order: 3 };
+  const purchases = [p('n1', 'nubank', 9), p('i1', 'inter', 8), p('r1', 'renner', 7), p('n2', 'nubank', 6), p('n3', 'nubank', 5)];
+  const ids = (accounts, limit) => recentPurchases(sample({ accounts, purchases }), limit).map((x) => x.id);
+
+  assert.deepEqual(ids([nubank, inter, renner]), ['n1', 'i1', 'r1', 'n2', 'n3']);
+  const archived = { ...inter, active: false };
+  const deleted = { ...renner, active: false, deleted: true };
+  assert.deepEqual(ids([nubank, archived, deleted]), ['n1', 'n2', 'n3'], 'arquivado e excluído ficam de fora');
+  // O limite vale depois do filtro: as de cartões ativos preenchem a lista.
+  assert.deepEqual(ids([nubank, archived, deleted], 2), ['n1', 'n2']);
+  assert.deepEqual(ids([nubank, { ...archived, active: true }, deleted]), ['n1', 'i1', 'n2', 'n3'], 'reativar faz voltar');
+  assert.deepEqual(ids([nubank, archived, { ...deleted, active: undefined }]), ['n1', 'n2', 'n3'], 'active ausente não é ativa');
 });
