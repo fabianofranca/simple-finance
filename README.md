@@ -1,6 +1,6 @@
 # Simple Finance
 
-App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-6.md`](plans/phase-6.md).
+App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar da planilha Excel. O site é estático (GitHub Pages) e usa uma planilha do Google Sheets como banco de dados, via Google Apps Script. Especificação de produto: [`docs/product.md`](docs/product.md). Plano da fase atual: [`plans/phase-7.md`](plans/phase-7.md).
 
 - **`index.html` é o app** (Mês, Check-in, Posso comprar?, Revisar valores e Ajustes).
 - **`dev.html` é o painel de desenvolvimento**: mesmo site, mesma configuração e mesmo cache. Abra em `…/simple-finance/dev.html`.
@@ -18,7 +18,7 @@ App web simples para a esposa do Fabiano gerenciar as contas da casa, no lugar d
 
 Cole o `Code.gs` inteiro de novo e use *Implantar → Gerenciar implantações → Editar → Nova versão*. Assim a URL continua a mesma; uma nova implantação gera URL nova.
 
-Abas e colunas novas do script entram sozinhas na primeira chamada depois da Nova versão, sem mexer nos dados (ex.: `pago` e `pago_em` da Fase 5; aba `Compras` e coluna `cartao` da Fase 6).
+Abas e colunas novas do script entram sozinhas na primeira chamada depois da Nova versão, sem mexer nos dados (ex.: `pago` e `pago_em` da Fase 5; aba `Compras` e coluna `cartao` da Fase 6; coluna `excluida` da Fase 7).
 
 ## Planilha de teste × planilha da esposa
 
@@ -37,7 +37,7 @@ Abas e colunas novas do script entram sozinhas na primeira chamada depois da Nov
 
 O app abre pelo ícone "Contas", sem a barra do navegador.
 
-## Como o app funciona (Fases 2 a 6 e Entrega)
+## Como o app funciona (Fases 2 a 7 e Entrega)
 
 - Na primeira abertura, pede o link de configuração (abrir o link ou colar na tela; endereço `/exec` e chave só em "Configurar à mão").
 - **Primeiro uso:** planilha sem contas ativas mostra "Vamos começar?" na tela Mês, com o botão "Cadastrar contas" (leva a Ajustes), e o check-in não abre sozinho. O primeiro saldo só é pedido depois da primeira conta.
@@ -64,11 +64,14 @@ O app abre pelo ícone "Contas", sem a barra do navegador.
 - **Lembrete:** a tela Mês mostra uma faixa com "Revisar agora" quando faz 7 dias ou mais sem revisar, ou quando nunca houve revisão.
 - **Ajustes:**
   - Entradas e Contas em listas separadas; ↑ e ↓ reordenam dentro do mesmo tipo.
-  - "Nova conta", tocar na conta para editar, "Arquivar" (o histórico continua guardado) e "Reativar" em "Arquivadas".
+  - "Nova conta", tocar na conta para editar, "Arquivar", "Reativar" e "Excluir" em "Arquivadas".
+  - **Arquivar (Fase 7):** apaga os valores dos meses seguintes ao atual e mantém o mês atual e o passado (histórico). Por isso a conta arquivada não reaparece nos meses futuros e deixa de entrar na sobra e nos Próximos meses. A confirmação diz quanto sai: "Arquivar Nubank? O histórico fica guardado. Os valores de novembro em diante (R$ 2.300,00) serão apagados." (sem valores futuros: "Arquivar Nubank? O histórico fica guardado."). Reativar não traz os valores de volta.
+  - **Excluir (Fase 7):** só nas Arquivadas, ao lado de "Reativar". A conta sai de Ajustes de vez, sem "Reativar". A linha fica na planilha com `excluida` marcada, então os meses passados continuam mostrando o nome e os valores dela. Apaga também os valores dos meses seguintes ao atual (cobre contas arquivadas antes da Fase 7, que ainda têm valores futuros). Quando a última arquivada é excluída, a seção "Arquivadas" some.
+  - Contas arquivadas antes da Fase 7 mantêm os valores futuros até serem excluídas, ou reativadas e arquivadas de novo. O app não apaga nada sozinho.
   - **"É cartão de crédito":** na edição de uma Conta (some com "Entrada"). Marca onde o "Vou comprar" pode lançar. Na lista, os cartões têm a etiqueta "cartão".
   - Frequência do check-in: "Toda vez", "1x por dia" ou "1x por semana".
   - Próximos meses: de 1 a 12, vale também para o Posso comprar?.
-  - **Últimas compras (Fase 6):** as compras mais recentes lançadas pelo "Vou comprar" e ainda não desfeitas, da mais nova para a mais antiga.
+  - **Últimas compras (Fase 6):** as compras mais recentes lançadas pelo "Vou comprar" e ainda não desfeitas, da mais nova para a mais antiga. Só entram compras de cartões ativos (Fase 7): ao arquivar um cartão, as compras dele saem da lista, e reativar o cartão as traz de volta.
     - Cada item: "R$ 150,00 × 3 · Nubank" (com 1 parcela, sem o "× 1") e "Lançada em 15/10 · novembro a janeiro", com o botão "Desfazer". Lista vazia: "Nenhuma compra lançada pelo Posso comprar?.".
     - "Mostrar as últimas" (− n +): de 1 a 20, padrão 5. Além do limite, a compra some da lista, mas continua na aba `Compras`; só não dá mais para desfazer pelo app.
     - "Desfazer" confirma com o valor que sai: "R$ 150,00 por mês será removido do Nubank, de novembro a janeiro." (com 1 parcela: "R$ 150,00 será removido do Nubank em novembro.").
@@ -176,6 +179,29 @@ No celular, com a planilha de teste.
 5. Lance outra compra, edite na tela Mês o valor do cartão num dos meses dela e desfaça a compra: a confirmação avisa "O valor de … mudou depois da compra. Confira depois.".
 6. Com duas compras na lista, mude "Mostrar as últimas" para 1: só a mais recente aparece, e a outra continua na aba `Compras`. Volte para 5 e confira a linha `compras_na_lista` na `Config`.
 
+## Roteiro de conferência da Fase 7
+
+No celular, com a planilha de teste.
+
+**Pausa 1: Nova versão do script**
+
+1. Cole o `apps-script/Code.gs` inteiro de novo e use *Gerenciar implantações → Editar → Nova versão*, **nas duas planilhas** (a de teste e a dela, se já tiver sido criada).
+2. Abra o app uma vez. A coluna `excluida` deve aparecer no fim do cabeçalho de `Contas`, desmarcada.
+
+**Pausa 2: uso no celular**
+
+1. Em Ajustes, arquive uma conta que tenha valores nos meses seguintes (ex.: Nubank da massa de teste). A confirmação diz quanto sai: "Os valores de novembro em diante (R$ …) serão apagados.". Confirme.
+2. Na tela Mês, vá aos meses seguintes (›): a conta não aparece mais. No mês atual ela continua, e a sobra e os Próximos meses já não contam os valores dela.
+3. Reative a conta: os valores apagados não voltam (ela aparece com "estimado" ou "—").
+4. Arquive de novo, abra "Arquivadas" e toque em "Excluir". Confirme: a conta some de Ajustes.
+5. Na tela Mês, volte aos meses passados: a conta continua lá, com o nome e os valores. Na aba `Contas`, a linha continua, com `excluida` marcada.
+6. Com a última arquivada excluída, a seção "Arquivadas" some.
+7. Em Ajustes → Últimas compras, confira que as compras de um cartão arquivado não aparecem.
+
+**Pausa 3: planilha dela**
+
+Na planilha dela, resolva a conta que reaparecia: "Excluir" (se já estiver arquivada) ou "Reativar" e "Arquivar" de novo.
+
 ## Entrega: planilha da esposa
 
 Passo a passo para colocar o app na mão dela. Detalhes e decisões em [`plans/delivery.md`](plans/delivery.md).
@@ -224,15 +250,16 @@ Para leitura no Sheets. A API trabalha em centavos; a planilha, em reais.
 
 | Aba | Colunas |
 |---|---|
-| `Contas` | `id`, `nome`, `tipo` (despesa/receita), `valor_padrao`, `ordem`, `ativa`, `cartao` (caixa de seleção, "É cartão de crédito") |
+| `Contas` | `id`, `nome`, `tipo` (despesa/receita), `valor_padrao`, `ordem`, `ativa`, `cartao` (caixa de seleção, "É cartão de crédito"), `excluida` (caixa de seleção, conta excluída em Ajustes) |
 | `Lancamentos` | `conta_id`, `mes`, `valor`, `atualizado_em`, `pago` (caixa de seleção), `pago_em` (data ISO de quando foi marcado) |
 | `Checkins` | `data`, `mes`, `saldo`, `contas_pagas`, `salario_caiu`, `sobra_prevista` |
 | `Compras` | `id`, `data` (ISO de quando foi lançada), `conta_id` (o cartão), `parcela`, `parcelas`, `primeiro_mes`, `desfeita_em` (ISO ou vazio) |
 | `Config` | `chave`, `valor` (`frequencia_checkin`, `horizonte_meses`, `compras_na_lista`, `ultima_revisao`, `ambiente`) |
 
 - O mês é texto `YYYY-MM` (não deixe o Sheets converter em data).
-- Valores em reais; `ativa`, `cartao`, `pago`, `contas_pagas` e `salario_caiu` são caixas de seleção.
+- Valores em reais; `ativa`, `cartao`, `excluida`, `pago`, `contas_pagas` e `salario_caiu` são caixas de seleção.
 - `cartao` vale só para despesa: numa receita o script grava sempre desmarcado.
+- `excluida`: a conta excluída em Ajustes não é apagada da planilha, para os meses passados continuarem com o nome e os valores. Ela não volta pelo app. Para desfazer, desmarque `excluida` e marque `ativa` na planilha (o script recusa conta excluída e ativa ao mesmo tempo, então desmarque `excluida` primeiro ou junto).
 - `Compras` guarda cada "Vou comprar". Desfazer preenche `desfeita_em`; a linha nunca é apagada. Compras além do limite da lista em Ajustes continuam aqui, para consulta.
 - Nos meses da compra, o `atualizado_em` do lançamento do cartão é o `data` da compra (ou o `desfeita_em`, ao desfazer). É assim que o app percebe que um mês mudou depois da compra.
 - `compras_na_lista` (1 a 20) é o tamanho da lista de Últimas compras. Numa planilha que já existia antes da Fase 6, a linha só aparece quando o limite for mudado em Ajustes (até lá o app usa 5); numa planilha nova, ou depois de seed/reset, ela já vem.
@@ -254,9 +281,9 @@ Ela mostra só lançamentos, sem os valores padrão.
 - Node ≥ 22.7. Testes: `node --test` na raiz (sem npm).
 - Servir local: `python3 -m http.server 8000` e abra `http://localhost:8000`.
 - Smoke test: `cp .env.example .env` e preencha `APPS_SCRIPT_URL` e `APPS_SCRIPT_KEY` (o `.env` está no `.gitignore`).
-  - `./scripts/smoke-test.sh`: modo padrão, não destrutivo. Usa a conta arquivada "smoke-test" e lançamentos em 2099. Não grava compra, porque as linhas da aba `Compras` não se apagam pela API: só confere que um `savePurchase` inválido não grava nada.
+  - `./scripts/smoke-test.sh`: modo padrão, não destrutivo. Usa a conta arquivada "smoke-test" (inclusive a ida e volta de `deleted`, que termina desmarcado) e lançamentos em 2099. Não grava compra, porque as linhas da aba `Compras` não se apagam pela API: só confere que um `savePurchase` inválido não grava nada.
   - `SMOKE_FULL=1 ./scripts/smoke-test.sh`: só na planilha de teste. Apaga tudo, roda a suíte completa (inclusive lançar, reenviar e desfazer uma compra em 2099) e termina com a massa de exemplo. Nunca aponte para a planilha da esposa.
-  - Os dois modos falham com uma dica se o script publicado ainda não é o da Fase 6.
+  - Os dois modos falham com uma dica se o script publicado ainda não é o da Fase 7.
 
 ## Ícones
 
