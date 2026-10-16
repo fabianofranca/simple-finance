@@ -1,6 +1,6 @@
 # Especificação de produto — App de Contas
 
-Fonte de verdade das decisões de produto para as Fases 1 a 6 e a Entrega. Mudou alguma regra? Atualize este arquivo antes do código.
+Fonte de verdade das decisões de produto para as Fases 1 a 7 e a Entrega. Mudou alguma regra? Atualize este arquivo antes do código.
 
 ## Problema
 
@@ -24,10 +24,10 @@ No começo, a decisão foi que ela não marcaria conta por conta como paga. Na F
 
 ## Conceitos
 
-- **Conta:** nome livre, tipo (despesa ou receita; salário é receita), valor padrão opcional (para recorrentes como salário e unha), ordem e situação (ativa ou arquivada). Uma conta de despesa pode ser marcada como **cartão de crédito**, que é onde o "Vou comprar" lança as parcelas (Fase 6). Não tem dia de vencimento nem categoria.
+- **Conta:** nome livre, tipo (despesa ou receita; salário é receita), valor padrão opcional (para recorrentes como salário e unha), ordem e situação (ativa, arquivada ou excluída; excluída é uma arquivada que saiu de Ajustes de vez, Fase 7). Uma conta de despesa pode ser marcada como **cartão de crédito**, que é onde o "Vou comprar" lança as parcelas (Fase 6). Não tem dia de vencimento nem categoria.
 - **Compra:** registro de um "Vou comprar": cartão, valor da parcela, número de parcelas, primeiro mês e, se for o caso, quando foi desfeita.
 - **Lançamento:** valor de uma conta num mês de pagamento. Pode estar marcado como pago (conta) ou recebido (entrada), com o momento em que foi marcado.
-- **Valor efetivo** de uma conta no mês: o lançamento, se existir. Se não existir, o valor padrão, exibido em cinza como estimativa. Se também não houver valor padrão, 0. Conta arquivada não usa valor padrão, mas os lançamentos dela continuam valendo.
+- **Valor efetivo** de uma conta no mês: o lançamento, se existir. Se não existir, o valor padrão, exibido em cinza como estimativa. Se também não houver valor padrão, 0. Conta arquivada (ou excluída) não usa valor padrão, mas os lançamentos dela continuam valendo. Arquivar e excluir apagam os lançamentos dos meses seguintes ao atual, então só o mês atual e o passado continuam contando.
 - **R(m)** e **D(m):** soma dos valores efetivos das receitas e das despesas do mês `m`.
 
 ## Check-in
@@ -113,7 +113,7 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
     - mês futuro: Entra, Sai e Sobra prevista no fim do mês;
     - mês passado: Entrou e Saiu, sem sobra.
   - Bloco "Próximos meses" (só no mês atual) com a sobra acumulada dos próximos H meses, com negativos em vermelho. Tocar num mês abre esse mês.
-  - Lista do mês em duas partes, "Entradas" e "Contas", na ordem das contas, com nome e valor. Valor padrão aparece em cinza com a palavra "estimado"; sem valor, aparece "—". Conta arquivada só aparece se tiver lançamento no mês.
+  - Lista do mês em duas partes, "Entradas" e "Contas", na ordem das contas, com nome e valor. Valor padrão aparece em cinza com a palavra "estimado"; sem valor, aparece "—". Conta arquivada ou excluída só aparece se tiver lançamento no mês.
   - No mês atual, cada linha tem um **check simples** à esquerda do nome: em Contas quer dizer "pago"; em Entradas, "recebido". É um toque só e nunca muda a sobra: marcar passa o valor de "Falta pagar/receber" para "Na conta" (se era estimado, vira lançamento e o "estimado" some); desmarcar devolve. Uma confirmação curta mostra o que aconteceu ("Nubank pago: − R$ 900,00 na conta."). Meses passados e futuros não têm check.
   - Um toque no valor abre a edição. Se a conta tem valor padrão, há também "Usar o valor padrão", que apaga o lançamento do mês (num item marcado, grava o valor padrão e mantém a marcação).
   - Rodapé: o botão "Atualizar saldo de outubro" (com o nome do mês corrente) aparece em todos os meses e sempre atualiza o saldo do mês corrente, mesmo quando um mês passado ou futuro está na tela. Ao lado, "Revisar valores" abre a revisão semanal.
@@ -126,10 +126,13 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
   - Lista dos próximos H meses com a sobra antes → depois da compra, negativos em vermelho.
   - Com "Pode comprar", o botão "Vou comprar" abre "Em qual cartão?", com um botão por cartão ativo (um toque lança) e "Cancelar". Sem cartão marcado: "Marque quais contas são cartão em Ajustes." e "Ir para Ajustes". Depois de lançar, a faixa confirma ("Lançado no Nubank: 3 parcelas de R$ 150,00, de novembro a janeiro.") e o formulário volta ao início.
 - **Ajustes:**
-  - Contas: lista das ativas na ordem, com nome, tipo e valor padrão (cartões com a etiqueta "cartão"). Tocar abre a edição (nome, "Conta" ou "Entrada", valor padrão opcional e, numa Conta, "É cartão de crédito"). Setas ↑↓ mudam a ordem. "Arquivar" em vez de excluir, com confirmação; o histórico nunca é apagado. Seção "Arquivadas", recolhida, com "Reativar". "Nova conta" pede nome, tipo e valor padrão opcional e entra no fim da lista.
+  - Contas: lista das ativas na ordem, com nome, tipo e valor padrão (cartões com a etiqueta "cartão"). Tocar abre a edição (nome, "Conta" ou "Entrada", valor padrão opcional e, numa Conta, "É cartão de crédito"). Setas ↑↓ mudam a ordem.
+    - **"Arquivar"**, com confirmação. O mês atual e o passado ficam (histórico); os valores dos meses seguintes são apagados, e a confirmação diz quanto sai ("Arquivar Nubank? O histórico fica guardado. Os valores de novembro em diante (R$ 2.300,00) serão apagados."). Reativar não traz esses valores de volta.
+    - Seção "Arquivadas", recolhida, com "Reativar" e **"Excluir"** (Fase 7). Excluir tira a conta de Ajustes de vez, sem "Reativar", mas a linha fica na planilha marcada como `excluida`: os meses passados continuam mostrando o nome e os valores dela. Os valores dos meses seguintes ao atual também são apagados. Confirmação: "Excluir Nubank? Ela sai de Ajustes e não dá para desfazer. Os meses passados continuam mostrando os valores dela.".
+    - "Nova conta" pede nome, tipo e valor padrão opcional e entra no fim da lista.
   - Check-in: "Toda vez", "1x por dia" ou "1x por semana".
   - Próximos meses: horizonte de 1 a 12 meses, usado no Mês e no Posso comprar?.
-  - Últimas compras: as N mais recentes lançadas pelo "Vou comprar" e ainda não desfeitas, com valor × parcelas, cartão, data e meses, e o botão "Desfazer". N vai de 1 a 20, com padrão 5. Além do limite, a compra some da lista, mas continua na aba Compras da planilha.
+  - Últimas compras: as N mais recentes lançadas pelo "Vou comprar" num cartão ativo e ainda não desfeitas, com valor × parcelas, cartão, data e meses, e o botão "Desfazer". N vai de 1 a 20, com padrão 5. Além do limite, a compra some da lista, mas continua na aba Compras da planilha.
   - Conexão: o endereço da planilha resumido e "Trocar planilha", com confirmação (apaga URL, chave e dados guardados no aparelho e volta para a configuração).
   - Tudo grava em segundo plano, com o mesmo aviso de gravação da tela Mês.
 
@@ -152,6 +155,7 @@ O app é instalável na tela inicial do celular (ícone "Contas", abre sem a bar
 | 4 — usabilidade | "Falta receber" no cartão do mês e switches "Recebi"/"Paguei" na tela Mês. Plano: `plans/phase-4.md` |
 | 5 — pago por item | Check por item na tela Mês (substitui os switches) e "Atualizar saldo" só com o saldo. Plano: `plans/phase-5.md` |
 | 6 — vou comprar | "Vou comprar" no Posso comprar? (lança as parcelas no cartão) e Últimas compras com desfazer em Ajustes. Plano: `plans/phase-6.md` |
+| 7 — arquivar e excluir | Arquivar apaga os meses futuros (a conta não reaparece) e "Excluir" nas Arquivadas, mantendo o passado. Plano: `plans/phase-7.md` |
 | Entrega | Planilha da esposa, link de configuração, primeiro uso e carga real. Plano: `plans/delivery.md` |
 
 ## Fora do escopo

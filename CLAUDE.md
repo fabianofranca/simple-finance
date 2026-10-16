@@ -35,6 +35,7 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - `plans/delivery.md`: plano da Entrega.
 - `plans/phase-5.md`: plano da Fase 5 (pago por item).
 - `plans/phase-6.md`: plano da Fase 6 (Vou comprar).
+- `plans/phase-7.md`: plano da Fase 7 (arquivar sem sobras e excluir conta arquivada).
 - `apps-script/Code.gs`: backend. GET devolve tudo (contas, lançamentos, check-ins, compras, ajustes); POST com `saveAccount`, `saveEntries`, `saveCheckin`, `saveSettings`, `savePurchase` (compra e valores do cartão numa chamada só, para lançar e desfazer), `ping`, e `seed`/`reset` só com `ambiente = teste`. Lançamentos têm `paidAt` (marcação de pago/recebido); contas têm `isCard` (coluna `cartao`); a aba `Compras` guarda cada "Vou comprar" (desfazer preenche `desfeita_em`, a linha nunca é apagada). Abas e colunas novas entram sozinhas em planilhas existentes (migração automática). Chave nas Propriedades do script; cola-se o arquivo inteiro, sem editar.
 - `index.html`: o app (casca, faixa de aviso, manifest e metas de iOS).
 - `dev.html` + `src/dev.js` + `styles.css`: painel de desenvolvimento (fora do app; mesma config e cache; gera chave e link de configuração).
@@ -72,6 +73,8 @@ App web bem simples para a esposa do Fabiano gerenciar as contas da casa. Hoje e
 - [x] Plano da Fase 6 escrito (plans/phase-6.md)
 - [x] Fase 6 executada: "Vou comprar" no Posso comprar? e Últimas compras com desfazer em Ajustes; validado no celular
 - [x] Entrega feita: planilha da esposa, link de configuração, primeiro uso e carga real
+- [x] Plano da Fase 7 escrito (plans/phase-7.md)
+- [ ] Fase 7: arquivar apaga os meses futuros e "Excluir" nas Arquivadas
 
 ## Como trabalhar neste repo
 - **Fases:** cada fase tem seu próprio plano em Markdown, aprovado pelo Fabiano antes de executar.
