@@ -1,6 +1,6 @@
 // Tela Ajustes: contas, frequência do check-in, horizonte dos próximos meses, últimas compras e conexão.
 // Regras de ordem e arquivo em src/accounts.js; compras em src/purchases.js; dinheiro sempre por src/money.js.
-import { activeAccounts, archivedAccounts, archive, editAccount, move, newAccount, reactivate } from '../accounts.js';
+import { activeAccounts, archivedAccounts, archivePlan, deletePlan, editAccount, move, newAccount, reactivate } from '../accounts.js';
 import { clearConfig, loadConfig, shortUrl } from '../config.js';
 import { formatInput, formatMoney, parseMoney } from '../money.js';
 import { buildUndo, recentPurchases } from '../purchases.js';
@@ -137,13 +137,8 @@ export function mount(el, ctx) {
           {
             type: 'button',
             class: 'link danger',
-            onclick: async () => {
-              const ok = await confirmDialog(`Arquivar ${account.name}? O histórico continua guardado.`, 'Arquivar');
-              if (!ok || !alive) return;
-              const current = (store.getData()?.accounts || []).find((a) => a.id === account.id) || account;
-              closeDialog();
-              store.saveAccount(archive(current));
-            }
+            // Ao gravar, fecha o diálogo; o foco volta para "Nova conta" (a conta saiu da lista).
+            onclick: () => runPlan(archivePlan, account.id, 'Arquivar', closeDialog)
           },
           'Arquivar'
         )
@@ -208,6 +203,55 @@ export function mount(el, ctx) {
   });
 
   // ----- ações -----
+  // Arquivar e excluir: confirma com o texto do plano (o que sai dos meses seguintes) e, se ela
+  // confirmar, recalcula com os dados de agora (podem ter mudado durante a pergunta) e grava na
+  // fila: primeiro os valores futuros apagados (se houver), depois a conta.
+  // Conta que sumiu (ou que não pode mais ser excluída) não quebra a tela: fecha o diálogo e redesenha.
+  // `beforeSave` roda logo antes de gravar (o Arquivar fecha o diálogo de edição).
+  async function runPlan(makePlan, id, okLabel, beforeSave) {
+    const plan = () => {
+      try {
+        return makePlan(store.getData(), ctx.now(), id);
+      } catch {
+        closeDialog();
+        render();
+        return null;
+      }
+    };
+    const first = plan();
+    if (!first) return false;
+    const ok = await confirmDialog(first.message, okLabel);
+    if (!ok || !alive) return false;
+    const current = plan();
+    if (!current) return false;
+    if (beforeSave) beforeSave();
+    if (current.entries.length > 0) store.saveEntries(current.entries);
+    store.saveAccount(current.account);
+    return true;
+  }
+
+  // Depois de reativar ou excluir, a linha some das Arquivadas: o foco vai para a próxima ação
+  // da seção (ou o título dela) e, se a seção sumiu, para "Nova conta".
+  function focusAfterArchivedChange() {
+    if (!alive) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && content.contains(active)) return;
+    const target =
+      content.querySelector('.archived .st-row button') ||
+      content.querySelector('.archived summary') ||
+      content.querySelector('[data-new-account]');
+    if (target) target.focus();
+  }
+
+  function reactivateAccount(account) {
+    store.saveAccount(reactivate(account));
+    focusAfterArchivedChange();
+  }
+
+  async function deleteAccount(id) {
+    if (await runPlan(deletePlan, id, 'Excluir')) focusAfterArchivedChange();
+  }
+
   function moveAccount(id, dir) {
     const accounts = store.getData()?.accounts || [];
     for (const changed of move(accounts, id, dir)) store.saveAccount(changed);
@@ -284,6 +328,7 @@ export function mount(el, ctx) {
   function accountsSection(data) {
     const active = activeAccounts(data.accounts);
     const archived = archivedAccounts(data.accounts);
+    if (archived.length === 0) archivedOpen = false; // a próxima arquivada começa com a seção fechada
 
     // Entradas e Contas são listas separadas (como na tela Mês); as setas valem dentro de cada uma.
     const rowsOf = (list) => list.map((account, i) => {
@@ -353,9 +398,19 @@ export function mount(el, ctx) {
                   type: 'button',
                   class: 'link',
                   'aria-label': `Reativar ${account.name}`,
-                  onclick: () => store.saveAccount(reactivate(account))
+                  onclick: () => reactivateAccount(account)
                 },
                 'Reativar'
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  class: 'link danger',
+                  'aria-label': `Excluir ${account.name}`,
+                  onclick: () => deleteAccount(account.id)
+                },
+                'Excluir'
               )
             )
           )

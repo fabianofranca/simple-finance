@@ -27,7 +27,9 @@
 .archived summary { display: flex; align-items: center; min-height: 44px; color: var(--muted); cursor: pointer; }
 .archived .account-static { color: var(--muted); }
 .settings button.link, .account-dialog button.link { background: transparent; color: var(--accent); font-weight: 400; font-size: .9rem; min-height: 44px; padding: 6px 8px; text-decoration: underline; }
-.account-dialog button.link.danger { color: var(--err); }
+.settings button.link.danger, .account-dialog button.link.danger { color: var(--err); }
+/* Reativar e Excluir lado a lado: os botões não encolhem; quem quebra linha é o nome */
+.archived .st-row button.link { flex: none; }
 
 /* Botões de escolha (check-in e tipo da conta) */
 .seg { display: flex; gap: 8px; }
