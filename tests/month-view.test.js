@@ -178,6 +178,22 @@ test('arquivada aparece só com lançamento no mês e não usa o padrão', () =>
   });
 });
 
+test('excluída segue a regra da arquivada: aparece em setembro (com lançamento), não em novembro', () => {
+  const d = seedData();
+  d.accounts.push({ id: 'velha', name: 'Velha', type: 'expense', defaultAmount: reais(99), order: 9, active: false, deleted: true });
+  d.entries.push({ accountId: 'velha', month: '2026-09', amount: reais(70), updatedAt: 'x' });
+
+  const sep = monthView(d, today, '2026-09');
+  assert.deepEqual(sep.rows.expense.find((r) => r.accountId === 'velha'), {
+    accountId: 'velha', name: 'Velha', amount: reais(70), estimated: false, empty: false, hasDefault: false, paid: false,
+  });
+  const without = monthView(seedData(), today, '2026-09');
+  assert.equal(sep.expense - without.expense, reais(70), 'o valor dela continua no Saiu de setembro');
+
+  const nov = monthView(d, today, '2026-11');
+  assert.equal(nov.rows.expense.some((r) => r.accountId === 'velha'), false);
+});
+
 test('ordem por `order`, empate pelo nome', () => {
   const d = seedData();
   d.accounts.push({ id: 'aluguel', name: 'Aluguel', type: 'expense', defaultAmount: null, order: 1, active: true });

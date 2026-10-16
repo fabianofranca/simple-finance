@@ -10,7 +10,6 @@ import { monthName, monthLabel } from './month-view.js';
 
 const MAX_COUNT = 24;
 const DEFAULT_LIST_SIZE = 5;
-const MISSING_ACCOUNT = 'Conta removida';
 
 // Cartões para a pergunta "Em qual cartão?": ativos, de despesa e marcados, na ordem.
 export function cardAccounts(data) {
@@ -41,10 +40,6 @@ function joinNames(names) {
 function dayMonth(iso) {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function accountName(data, accountId) {
-  return (data.accounts || []).find((a) => a.id === accountId)?.name ?? MISSING_ACCOUNT;
 }
 
 // Lança a compra no cartão: em cada um dos `count` meses, a partir do mês seguinte ao
@@ -84,20 +79,23 @@ export function buildPurchase(data, now, { id, accountId, installment, count } =
   return { purchase, entries, notice };
 }
 
-// Lista "Últimas compras": as não desfeitas, da mais recente para a mais antiga, até `limit`.
+// Lista "Últimas compras": as não desfeitas de contas ativas, da mais recente para a mais
+// antiga, até `limit`. Compra de cartão arquivado, excluído ou que não existe fica de fora
+// (os meses futuros dele já foram apagados); reativar o cartão faz a compra voltar.
 // Cada item traz os textos prontos: título "R$ 150,00 × 3 · Nubank" e detalhe
 // "Lançada em 15/10 · novembro a janeiro". Os meses são nomeados em relação ao mês em que a
 // compra foi lançada (o mês antes do primeiro), como no aviso de "Lançado".
 export function recentPurchases(data, limit = DEFAULT_LIST_SIZE) {
   const size = Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_LIST_SIZE;
+  const active = new Map(activeAccounts(data?.accounts).map((a) => [a.id, a]));
   return (data?.purchases || [])
-    .filter((p) => !p.undoneAt)
+    .filter((p) => !p.undoneAt && active.has(p.accountId))
     .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
     .slice(0, size)
     .map((p) => {
       const months = monthsOf(p);
       const name = namer(addMonths(p.firstMonth, -1));
-      const card = accountName(data, p.accountId);
+      const card = active.get(p.accountId).name;
       const value = formatMoney(p.installment);
       const range = p.count === 1 ? name(months[0]) : `${name(months[0])} a ${name(months[months.length - 1])}`;
       return {

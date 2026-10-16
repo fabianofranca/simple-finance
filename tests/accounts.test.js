@@ -9,6 +9,8 @@ import {
   move,
   archive,
   reactivate,
+  archivePlan,
+  deletePlan,
 } from '../src/accounts.js';
 
 const acc = (id, order, active = true, extra = {}) => ({
@@ -175,4 +177,120 @@ test('archive e reactivate trocam active e mantêm o order', () => {
   assert.deepEqual(archive(a), { ...a, active: false });
   assert.deepEqual(reactivate(archive(a)), a);
   assert.equal(a.active, true);
+});
+
+test('archivedAccounts ignora as excluídas; activeAccounts não muda', () => {
+  const list = [...sample(), acc('sumida', 6, false, { deleted: true }), acc('pendente', 7, false, { deleted: false })];
+  assert.deepEqual(archivedAccounts(list).map((a) => a.id), ['velha', 'pendente', 'antiga']);
+  assert.deepEqual(activeAccounts(list).map((a) => a.id), ['nubank', 'inter', 'renner', 'cea']);
+});
+
+// Arquivar e excluir: mês atual outubro de 2026.
+const NOW = new Date(2026, 9, 15, 12);
+const reais = (v) => Math.round(v * 100);
+const nbsp = (text) => text.replace(/\u00a0/g, ' ');
+
+// Nubank (cartão) com 900 em outubro, 1.000 em novembro, 800 em dezembro e 500 em janeiro de 2027;
+// Inter com 300 em setembro e outubro (sem futuros); Renner com valor futuro que não pode sumir.
+function planData({ nubankActive = true } = {}) {
+  const entry = (accountId, month, v, extra = {}) => ({ accountId, month, amount: reais(v), updatedAt: 'x', ...extra });
+  return {
+    accounts: [
+      acc('nubank', 1, nubankActive, { isCard: true, defaultAmount: reais(700) }),
+      acc('inter', 2),
+      acc('renner', 3),
+    ],
+    entries: [
+      entry('nubank', '2027-01', 500),
+      entry('nubank', '2026-10', 900),
+      entry('renner', '2026-11', 50),
+      entry('nubank', '2026-12', 800, { paidAt: '2026-10-10T12:00:00.000Z' }),
+      entry('nubank', '2026-11', 1000),
+      entry('nubank', '2026-09', 950),
+      entry('inter', '2026-09', 300),
+      entry('inter', '2026-10', 300),
+    ],
+  };
+}
+
+test('archivePlan: apaga novembro, dezembro e janeiro, mantém outubro e diz o que sai', () => {
+  const data = planData();
+  const before = JSON.stringify(data);
+  const plan = archivePlan(data, NOW, 'nubank');
+  assert.deepEqual(plan.account, { ...data.accounts[0], active: false });
+  assert.equal(plan.account.isCard, true);
+  assert.deepEqual(plan.entries, [
+    { accountId: 'nubank', month: '2026-11', amount: null },
+    { accountId: 'nubank', month: '2026-12', amount: null },
+    { accountId: 'nubank', month: '2027-01', amount: null },
+  ]);
+  assert.equal(
+    nbsp(plan.message),
+    'Arquivar Nubank? O histórico fica guardado. Os valores de novembro em diante (R$ 2.300,00) serão apagados.',
+  );
+  assert.equal(JSON.stringify(data), before, 'não altera os dados recebidos');
+});
+
+test('archivePlan: sem valores futuros, texto curto e entries vazio', () => {
+  const plan = archivePlan(planData(), NOW, 'inter');
+  assert.deepEqual(plan.entries, []);
+  assert.equal(plan.message, 'Arquivar Inter? O histórico fica guardado.');
+  assert.equal(plan.account.active, false);
+  // Dados sem entries também funcionam.
+  assert.deepEqual(archivePlan({ accounts: [acc('a', 1)] }, NOW, 'a').entries, []);
+});
+
+test('archivePlan: primeiro mês futuro em outro ano vem com o ano', () => {
+  const data = planData();
+  data.entries = data.entries.filter((e) => !(e.accountId === 'nubank' && e.month > '2026-10' && e.month < '2027-01'));
+  const plan = archivePlan(data, NOW, 'nubank');
+  assert.deepEqual(plan.entries, [{ accountId: 'nubank', month: '2027-01', amount: null }]);
+  assert.equal(
+    nbsp(plan.message),
+    'Arquivar Nubank? O histórico fica guardado. Os valores de janeiro de 2027 em diante (R$ 500,00) serão apagados.',
+  );
+});
+
+test('archivePlan: soma o módulo dos valores (ajuste negativo)', () => {
+  const data = planData();
+  data.entries.push({ accountId: 'inter', month: '2026-11', amount: reais(-120), updatedAt: 'x' });
+  data.entries.push({ accountId: 'inter', month: '2026-12', amount: reais(80), updatedAt: 'x' });
+  assert.match(nbsp(archivePlan(data, NOW, 'inter').message), /novembro em diante \(R\$ 200,00\)/);
+});
+
+test('archivePlan: conta já arquivada devolve o mesmo plano; inexistente lança Error', () => {
+  const plan = archivePlan(planData({ nubankActive: false }), NOW, 'nubank');
+  assert.equal(plan.account.active, false);
+  assert.equal(plan.entries.length, 3);
+  assert.throws(() => archivePlan(planData(), NOW, 'nada'), /inexistente/);
+});
+
+test('deletePlan: arquivada com valores futuros apaga esses meses e marca deleted', () => {
+  const data = planData({ nubankActive: false });
+  const plan = deletePlan(data, NOW, 'nubank');
+  assert.deepEqual(plan.account, { ...data.accounts[0], active: false, deleted: true });
+  assert.deepEqual(plan.entries.map((e) => e.month), ['2026-11', '2026-12', '2027-01']);
+  assert.ok(plan.entries.every((e) => e.accountId === 'nubank' && e.amount === null));
+  assert.equal(
+    nbsp(plan.message),
+    'Excluir Nubank? Ela sai de Ajustes e não dá para desfazer. Os meses passados continuam mostrando os valores dela.'
+      + ' Os valores de novembro em diante (R$ 2.300,00) serão apagados.',
+  );
+  assert.equal(data.accounts[0].deleted, undefined, 'não altera a conta recebida');
+});
+
+test('deletePlan: sem valores futuros, texto sem a parte dos valores', () => {
+  const data = planData();
+  data.accounts[1] = { ...data.accounts[1], active: false };
+  const plan = deletePlan(data, NOW, 'inter');
+  assert.deepEqual(plan.entries, []);
+  assert.equal(
+    plan.message,
+    'Excluir Inter? Ela sai de Ajustes e não dá para desfazer. Os meses passados continuam mostrando os valores dela.',
+  );
+});
+
+test('deletePlan: conta ativa ou inexistente lança Error', () => {
+  assert.throws(() => deletePlan(planData(), NOW, 'nubank'), /arquivada/);
+  assert.throws(() => deletePlan(planData(), NOW, 'nada'), /inexistente/);
 });
