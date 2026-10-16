@@ -13,7 +13,7 @@
 //    Padrões da Config: check-in 1x por dia (diaria), horizonte de 3 meses e 5 compras
 //    na lista de Últimas compras.
 //    Em planilha que já existe, as abas novas (ex.: Compras) são criadas e as colunas novas
-//    do script (ex.: pago e pago_em, da aba Lancamentos; cartao, da aba Contas) entram
+//    do script (ex.: pago e pago_em, da aba Lancamentos; cartao e excluida, da aba Contas) entram
 //    sozinhas no fim do cabeçalho na primeira chamada, sem mexer nos dados.
 // 6. Só na planilha de TESTE: na aba Config, adicione a linha  ambiente | teste
 //    (libera seed e reset). Na planilha da esposa essa linha não existe.
@@ -29,7 +29,9 @@
 //   GET  ?key=...
 //     -> { ok, accounts, entries, checkins, purchases, settings }
 //        accounts : [{ id, name, type: 'expense'|'income', defaultAmount: int|null, order, active,
-//                      isCard: boolean }]
+//                      isCard: boolean, deleted: boolean }]
+//                   (deleted = conta excluída pelo app: a linha continua na planilha, o histórico
+//                   fica e o app a esconde de Ajustes)
 //        entries  : [{ accountId, month, amount, updatedAt, paidAt: ISO|null }]
 //                   (paidAt = quando o item foi marcado como pago/recebido; null = sem marcação)
 //        checkins : [{ at, month, balance, billsPaid, incomeReceived, projectedBalance }]
@@ -42,6 +44,10 @@
 //   POST { key, action: 'saveAccount', account: {...} }           -> { ok }   (upsert por id)
 //        isCard opcional: chave ausente mantém a marcação da linha existente (conta nova
 //        fica false); conta de receita grava sempre false
+//        deleted opcional: chave ausente mantém a marcação da linha existente (conta nova
+//        fica false); presente, tem de ser boolean. Conta excluída tem de ficar inativa:
+//        o resultado final com deleted true e active true dá invalid_payload (vale também
+//        quando a chave vem ausente e a linha já está excluída), sem gravar nada
 //   POST { key, action: 'saveEntries', entries: [{accountId, month, amount, paidAt?}] }
 //                                                                  -> { ok, saved }
 //        (upsert por conta + mês; amount null apaga a linha)
@@ -78,7 +84,8 @@ const SHEETS = {
       { name: 'valor_padrao', kind: 'money' },
       { name: 'ordem', kind: 'number' },
       { name: 'ativa', kind: 'bool' },
-      { name: 'cartao', kind: 'bool' }
+      { name: 'cartao', kind: 'bool' },
+      { name: 'excluida', kind: 'bool' }
     ]
   },
   Lancamentos: {
@@ -452,7 +459,8 @@ function readAll() {
       defaultAmount: readMoney(r.v.valor_padrao),
       order: ordem,
       active: readBool(r.v.ativa),
-      isCard: readBool(r.v.cartao)
+      isCard: readBool(r.v.cartao),
+      deleted: readBool(r.v.excluida)
     };
   });
 
@@ -595,7 +603,10 @@ function validateAccount(a) {
     active: checkBool(a.active),
     // isCard é opcional: o app antigo não manda a chave
     hasIsCard: 'isCard' in a,
-    isCard: 'isCard' in a ? checkBool(a.isCard) : false
+    isCard: 'isCard' in a ? checkBool(a.isCard) : false,
+    // deleted também é opcional (o app antigo não manda a chave)
+    hasDeleted: 'deleted' in a,
+    deleted: 'deleted' in a ? checkBool(a.deleted) : false
   };
 }
 
@@ -681,7 +692,8 @@ function accountRow(a) {
     valor_padrao: a.defaultAmount === null ? '' : toReais(a.defaultAmount),
     ordem: a.order,
     ativa: a.active,
-    cartao: a.isCard
+    cartao: a.isCard,
+    excluida: a.deleted
   };
 }
 
@@ -692,6 +704,10 @@ function saveAccount(payload) {
   // receita nunca é cartão; sem a chave, mantém o que estava (conta nova: false)
   if (a.type === 'income') a.isCard = false;
   else if (!a.hasIsCard) a.isCard = found ? readBool(found.v.cartao) : false;
+  // sem a chave, mantém a marcação da linha (conta nova: false)
+  if (!a.hasDeleted) a.deleted = found ? readBool(found.v.excluida) : false;
+  // conta excluída não pode ficar ativa (valida o resultado final, antes de gravar)
+  if (a.deleted && a.active) invalid();
   if (found) updateRow(table, found, accountRow(a));
   else appendRows(table, [accountRow(a)]);
   return { ok: true };
@@ -891,7 +907,7 @@ function seed() {
     return accountRow({
       id: a.id, name: a.name, type: a.type,
       defaultAmount: a.defaultAmount === null ? null : toCents(a.defaultAmount),
-      order: a.order, active: true, isCard: a.isCard
+      order: a.order, active: true, isCard: a.isCard, deleted: false
     });
   });
   appendRows(loadTable('Contas'), accountRows);

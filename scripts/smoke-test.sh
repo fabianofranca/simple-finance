@@ -2,8 +2,8 @@
 # Teste ponta a ponta da API do Apps Script (valores em centavos).
 #
 # Modo padrão (não destrutivo): ping, leitura, conta "smoke-test" (arquivada, inclusive a
-# marcação de cartão, isCard), lançamentos em 2099-12 (inclusive a marcação de pago, paidAt),
-# payloads inválidos (savePurchase inválido não grava nada) e chave errada.
+# marcações de cartão e de excluída, isCard e deleted), lançamentos em 2099-12 (inclusive a
+# marcação de pago, paidAt), payloads inválidos (savePurchase inválido não grava nada) e chave errada.
 # Não mexe em dados reais. Não grava compra: linhas da aba Compras não se apagam pela API.
 #   cp .env.example .env (preencha) && ./scripts/smoke-test.sh
 #
@@ -21,7 +21,7 @@ set -a; . ./.env; set +a
 : "${APPS_SCRIPT_KEY:?defina APPS_SCRIPT_KEY no .env}"
 
 FULL=0; [ "${SMOKE_FULL:-}" = "1" ] && FULL=1
-if [ "$FULL" = 1 ]; then TOTAL=16; MODO="completo"; else TOTAL=10; MODO="padrão"; fi
+if [ "$FULL" = 1 ]; then TOTAL=17; MODO="completo"; else TOTAL=11; MODO="padrão"; fi
 N=0
 
 fail() { echo "FALHA: $1" >&2; echo "Resposta: ${2:-}" >&2; exit 1; }
@@ -68,6 +68,8 @@ g=$(getall) || fail "GET sem resposta"
 check "GET sem accounts/entries/checkins/settings" "$g" '["accounts","entries","checkins","settings"].every(k => k in d)'
 check "GET sem purchases, purchaseListSize ou isCard (publicou a Nova versão do script da Fase 6?)" "$g" \
   'Array.isArray(d.purchases) && Number.isInteger(d.settings.purchaseListSize) && d.accounts.every(a => typeof a.isCard === "boolean")'
+check "GET sem deleted nas contas (publicou a Nova versão do script da Fase 7?)" "$g" \
+  'd.accounts.every(a => typeof a.deleted === "boolean")'
 echo "  ok"
 
 if [ "$FULL" = 1 ]; then
@@ -104,6 +106,28 @@ check "isCard false não desmarcou" "$(card_of "$g")" 'd.length === 1 && d[0] ==
 r=$(post "\"action\":\"saveAccount\",\"account\":{$SMOKE_ACCOUNT,\"isCard\":\"sim\"}") || fail "sem resposta"
 check "esperava invalid_payload para isCard texto" "$r" 'd.ok !== true && d.error === "invalid_payload"'
 echo "  ok: marcou, manteve, desmarcou"
+
+step "deleted: marcar, regravar sem a chave (mantém), recusar active true e desmarcar"
+deleted_of() { js "$1" 'd.accounts.filter(a => a.id === "smoke-test").map(a => ({ deleted: a.deleted, active: a.active }))'; }
+ACTIVE_ACCOUNT=${SMOKE_ACCOUNT/\"active\":false/\"active\":true}
+ok_post "saveAccount deleted true" "\"action\":\"saveAccount\",\"account\":{$SMOKE_ACCOUNT,\"deleted\":true}"
+g=$(getall) || fail "GET sem resposta"
+check "deleted true não voltou no GET" "$(deleted_of "$g")" 'd.length === 1 && d[0].deleted === true && d[0].active === false'
+ok_post "saveAccount sem deleted" "\"action\":\"saveAccount\",\"account\":{$SMOKE_ACCOUNT}"
+g=$(getall) || fail "GET sem resposta"
+check "regravar sem deleted apagou a marcação" "$(deleted_of "$g")" 'd.length === 1 && d[0].deleted === true'
+r=$(post "\"action\":\"saveAccount\",\"account\":{$ACTIVE_ACCOUNT,\"deleted\":true}") || fail "sem resposta"
+check "esperava invalid_payload para deleted true com active true" "$r" 'd.ok !== true && d.error === "invalid_payload"'
+r=$(post "\"action\":\"saveAccount\",\"account\":{$ACTIVE_ACCOUNT}") || fail "sem resposta"
+check "esperava invalid_payload para active true sem deleted, com a conta já excluída" "$r" 'd.ok !== true && d.error === "invalid_payload"'
+g=$(getall) || fail "GET sem resposta"
+check "o saveAccount inválido gravou algo" "$(deleted_of "$g")" 'd.length === 1 && d[0].deleted === true && d[0].active === false'
+ok_post "saveAccount deleted false" "\"action\":\"saveAccount\",\"account\":{$SMOKE_ACCOUNT,\"deleted\":false}"
+g=$(getall) || fail "GET sem resposta"
+check "deleted false não desmarcou" "$(deleted_of "$g")" 'd.length === 1 && d[0].deleted === false'
+r=$(post "\"action\":\"saveAccount\",\"account\":{$SMOKE_ACCOUNT,\"deleted\":\"sim\"}") || fail "sem resposta"
+check "esperava invalid_payload para deleted texto" "$r" 'd.ok !== true && d.error === "invalid_payload"'
+echo "  ok: marcou, manteve, recusou e desmarcou"
 
 step "saveEntries duas vezes (100 e 200): uma linha com 200"
 save_entries "saveEntries 100" 100
